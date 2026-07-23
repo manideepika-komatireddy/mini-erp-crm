@@ -11,6 +11,13 @@ import {
 
 import "./App.css";
 
+// ==========================================
+// DEPLOYED BACKEND URL
+// ==========================================
+
+const API_URL =
+  "https://mini-erp-crm-backend-zpdv.onrender.com";
+
 
 // ==========================================
 // INTERFACES
@@ -55,10 +62,8 @@ function App() {
       totalSales: 0,
     });
 
-
   const [salesData, setSalesData] =
     useState<SalesData[]>([]);
-
 
   const [customers, setCustomers] =
     useState<Customer[]>([]);
@@ -149,11 +154,19 @@ function App() {
     try {
 
       const response = await fetch(
-        "http://localhost:5000/api/dashboard"
+        `${API_URL}/api/dashboard`
       );
 
       const result =
         await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Dashboard API error:",
+          result
+        );
+        return;
+      }
 
       setData(result);
 
@@ -178,11 +191,19 @@ function App() {
     try {
 
       const response = await fetch(
-        "http://localhost:5000/api/dashboard/sales-overview"
+        `${API_URL}/api/dashboard/sales-overview`
       );
 
       const result =
         await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Sales API error:",
+          result
+        );
+        return;
+      }
 
       setSalesData(result);
 
@@ -207,10 +228,13 @@ function App() {
     try {
 
       const response = await fetch(
-        "http://localhost:5000/api/dashboard/customers"
+        `${API_URL}/api/dashboard/customers`
       );
 
       if (!response.ok) {
+        console.error(
+          "Customers API error"
+        );
         return;
       }
 
@@ -278,7 +302,6 @@ function App() {
       value,
     } = event.target;
 
-
     setCustomerForm(
       (previous) => ({
 
@@ -307,7 +330,6 @@ function App() {
       value,
     } = event.target;
 
-
     setLeadForm(
       (previous) => ({
 
@@ -333,7 +355,6 @@ function App() {
       name,
       value,
     } = event.target;
-
 
     setProductForm(
       (previous) => ({
@@ -363,7 +384,6 @@ function App() {
       value,
     } = event.target;
 
-
     setSaleForm(
       (previous) => ({
 
@@ -391,12 +411,11 @@ function App() {
       "Adding customer..."
     );
 
-
     try {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/dashboard/customers",
+          `${API_URL}/api/dashboard/customers`,
           {
 
             method: "POST",
@@ -414,10 +433,8 @@ function App() {
           }
         );
 
-
       const result =
         await response.json();
-
 
       if (!response.ok) {
 
@@ -430,11 +447,9 @@ function App() {
 
       }
 
-
       setMessage(
         "Customer added successfully!"
       );
-
 
       setCustomerForm({
 
@@ -448,11 +463,9 @@ function App() {
 
       });
 
-
       await fetchDashboardData();
 
       await fetchCustomers();
-
 
       setTimeout(() => {
 
@@ -460,14 +473,12 @@ function App() {
 
       }, 1200);
 
-
     } catch (error) {
 
       console.error(
         "Add customer error:",
         error
       );
-
 
       setMessage(
         "Could not connect to backend"
@@ -492,12 +503,11 @@ function App() {
       "Adding lead..."
     );
 
-
     try {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/dashboard/leads",
+          `${API_URL}/api/dashboard/leads`,
           {
 
             method: "POST",
@@ -515,10 +525,8 @@ function App() {
           }
         );
 
-
       const result =
         await response.json();
-
 
       if (!response.ok) {
 
@@ -531,11 +539,9 @@ function App() {
 
       }
 
-
       setMessage(
         "Lead added successfully!"
       );
-
 
       setLeadForm({
 
@@ -549,9 +555,7 @@ function App() {
 
       });
 
-
       await fetchDashboardData();
-
 
       setTimeout(() => {
 
@@ -559,14 +563,12 @@ function App() {
 
       }, 1200);
 
-
     } catch (error) {
 
       console.error(
         "Add lead error:",
         error
       );
-
 
       setMessage(
         "Could not connect to backend"
@@ -591,12 +593,11 @@ function App() {
       "Adding product..."
     );
 
-
     try {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/dashboard/products",
+          `${API_URL}/api/dashboard/products`,
           {
 
             method: "POST",
@@ -614,10 +615,8 @@ function App() {
           }
         );
 
-
       const result =
         await response.json();
-
 
       if (!response.ok) {
 
@@ -630,11 +629,9 @@ function App() {
 
       }
 
-
       setMessage(
         "Product added successfully!"
       );
-
 
       setProductForm({
 
@@ -648,9 +645,7 @@ function App() {
 
       });
 
-
       await fetchDashboardData();
-
 
       setTimeout(() => {
 
@@ -658,14 +653,12 @@ function App() {
 
       }, 1200);
 
-
     } catch (error) {
 
       console.error(
         "Add product error:",
         error
       );
-
 
       setMessage(
         "Could not connect to backend"
@@ -690,12 +683,11 @@ function App() {
       "Recording sale..."
     );
 
-
     try {
 
       const response =
         await fetch(
-          "http://localhost:5000/api/dashboard/sales",
+          `${API_URL}/api/dashboard/sales`,
           {
 
             method: "POST",
@@ -713,10 +705,8 @@ function App() {
           }
         );
 
-
       const result =
         await response.json();
-
 
       if (!response.ok) {
 
@@ -729,11 +719,9 @@ function App() {
 
       }
 
-
       setMessage(
         "Sale recorded successfully!"
       );
-
 
       setSaleForm({
 
@@ -745,11 +733,9 @@ function App() {
 
       });
 
-
       await fetchDashboardData();
 
       await fetchSalesData();
-
 
       setTimeout(() => {
 
@@ -757,14 +743,12 @@ function App() {
 
       }, 1200);
 
-
     } catch (error) {
 
       console.error(
         "Record sale error:",
         error
       );
-
 
       setMessage(
         "Could not connect to backend"
@@ -783,17 +767,13 @@ function App() {
 
     <div className="app">
 
-
-      {/* ==================================
-          SIDEBAR
-      ================================== */}
+      {/* SIDEBAR */}
 
       <aside className="sidebar">
 
         <div className="logo">
           Mini ERP CRM
         </div>
-
 
         <nav>
 
@@ -803,7 +783,6 @@ function App() {
           >
             Dashboard
           </a>
-
 
           <a
             onClick={() => {
@@ -817,7 +796,6 @@ function App() {
             Customers
           </a>
 
-
           <a
             onClick={() => {
 
@@ -830,7 +808,6 @@ function App() {
             Leads
           </a>
 
-
           <a
             onClick={() => {
 
@@ -842,7 +819,6 @@ function App() {
           >
             Products
           </a>
-
 
           <a
             onClick={() => {
@@ -857,7 +833,6 @@ function App() {
           </a>
 
         </nav>
-
 
         <div className="sidebar-bottom">
 
@@ -874,12 +849,9 @@ function App() {
       </aside>
 
 
-      {/* ==================================
-          MAIN CONTENT
-      ================================== */}
+      {/* MAIN CONTENT */}
 
       <main className="main-content">
-
 
         {/* HEADER */}
 
@@ -898,13 +870,11 @@ function App() {
 
           </div>
 
-
           <div className="profile">
 
             <div className="avatar">
               M
             </div>
-
 
             <div>
 
@@ -923,12 +893,9 @@ function App() {
         </header>
 
 
-        {/* ==================================
-            DASHBOARD CARDS
-        ================================== */}
+        {/* DASHBOARD CARDS */}
 
         <section className="dashboard-cards">
-
 
           <div className="card">
 
@@ -1014,13 +981,10 @@ function App() {
 
           </div>
 
-
         </section>
 
 
-        {/* ==================================
-            SALES CHART
-        ================================== */}
+        {/* SALES CHART */}
 
         <section className="chart-section">
 
@@ -1038,9 +1002,7 @@ function App() {
 
             </div>
 
-
             <div className="chart-container">
-
 
               {salesData.length > 0 ? (
 
@@ -1087,7 +1049,6 @@ function App() {
 
               )}
 
-
             </div>
 
           </div>
@@ -1095,12 +1056,9 @@ function App() {
         </section>
 
 
-        {/* ==================================
-            BOTTOM SECTION
-        ================================== */}
+        {/* BOTTOM SECTION */}
 
         <section className="overview">
-
 
           {/* BUSINESS OVERVIEW */}
 
@@ -1109,7 +1067,6 @@ function App() {
             <h2>
               Business Overview
             </h2>
-
 
             <div className="overview-item">
 
@@ -1123,7 +1080,6 @@ function App() {
 
             </div>
 
-
             <div className="overview-item">
 
               <span>
@@ -1136,7 +1092,6 @@ function App() {
 
             </div>
 
-
             <div className="overview-item">
 
               <span>
@@ -1148,7 +1103,6 @@ function App() {
               </strong>
 
             </div>
-
 
             <div className="overview-item">
 
@@ -1174,7 +1128,6 @@ function App() {
               Quick Actions
             </h2>
 
-
             <button
               type="button"
               onClick={() => {
@@ -1187,7 +1140,6 @@ function App() {
             >
               Add Customer
             </button>
-
 
             <button
               type="button"
@@ -1202,7 +1154,6 @@ function App() {
               Add Lead
             </button>
 
-
             <button
               type="button"
               onClick={() => {
@@ -1215,7 +1166,6 @@ function App() {
             >
               Add Product
             </button>
-
 
             <button
               type="button"
@@ -1230,19 +1180,14 @@ function App() {
               Record Sale
             </button>
 
-
           </div>
 
-
         </section>
-
 
       </main>
 
 
-      {/* ==================================
-          ADD CUSTOMER MODAL
-      ================================== */}
+      {/* ADD CUSTOMER MODAL */}
 
       {showCustomerForm && (
 
@@ -1256,7 +1201,6 @@ function App() {
                 Add Customer
               </h2>
 
-
               <button
                 type="button"
                 className="close-button"
@@ -1267,13 +1211,11 @@ function App() {
 
             </div>
 
-
             <form
               onSubmit={
                 handleAddCustomer
               }
             >
-
 
               <input
                 type="text"
@@ -1288,7 +1230,6 @@ function App() {
                 required
               />
 
-
               <input
                 type="email"
                 name="email"
@@ -1301,7 +1242,6 @@ function App() {
                 }
                 required
               />
-
 
               <input
                 type="text"
@@ -1316,7 +1256,6 @@ function App() {
                 required
               />
 
-
               <input
                 type="text"
                 name="company"
@@ -1330,14 +1269,12 @@ function App() {
                 required
               />
 
-
               <button
                 type="submit"
                 className="submit-button"
               >
                 Add Customer
               </button>
-
 
               {message && (
 
@@ -1346,7 +1283,6 @@ function App() {
                 </p>
 
               )}
-
 
             </form>
 
@@ -1357,9 +1293,7 @@ function App() {
       )}
 
 
-      {/* ==================================
-          ADD LEAD MODAL
-      ================================== */}
+      {/* ADD LEAD MODAL */}
 
       {showLeadForm && (
 
@@ -1373,7 +1307,6 @@ function App() {
                 Add Lead
               </h2>
 
-
               <button
                 type="button"
                 className="close-button"
@@ -1384,13 +1317,11 @@ function App() {
 
             </div>
 
-
             <form
               onSubmit={
                 handleAddLead
               }
             >
-
 
               <input
                 type="text"
@@ -1405,7 +1336,6 @@ function App() {
                 required
               />
 
-
               <input
                 type="email"
                 name="email"
@@ -1419,7 +1349,6 @@ function App() {
                 required
               />
 
-
               <input
                 type="text"
                 name="phone"
@@ -1432,7 +1361,6 @@ function App() {
                 }
                 required
               />
-
 
               <select
                 name="status"
@@ -1463,14 +1391,12 @@ function App() {
 
               </select>
 
-
               <button
                 type="submit"
                 className="submit-button"
               >
                 Add Lead
               </button>
-
 
               {message && (
 
@@ -1479,7 +1405,6 @@ function App() {
                 </p>
 
               )}
-
 
             </form>
 
@@ -1490,9 +1415,7 @@ function App() {
       )}
 
 
-      {/* ==================================
-          ADD PRODUCT MODAL
-      ================================== */}
+      {/* ADD PRODUCT MODAL */}
 
       {showProductForm && (
 
@@ -1506,7 +1429,6 @@ function App() {
                 Add Product
               </h2>
 
-
               <button
                 type="button"
                 className="close-button"
@@ -1517,13 +1439,11 @@ function App() {
 
             </div>
 
-
             <form
               onSubmit={
                 handleAddProduct
               }
             >
-
 
               <input
                 type="text"
@@ -1538,7 +1458,6 @@ function App() {
                 required
               />
 
-
               <input
                 type="text"
                 name="category"
@@ -1551,7 +1470,6 @@ function App() {
                 }
                 required
               />
-
 
               <input
                 type="number"
@@ -1567,7 +1485,6 @@ function App() {
                 required
               />
 
-
               <input
                 type="number"
                 name="stock"
@@ -1582,14 +1499,12 @@ function App() {
                 required
               />
 
-
               <button
                 type="submit"
                 className="submit-button"
               >
                 Add Product
               </button>
-
 
               {message && (
 
@@ -1598,7 +1513,6 @@ function App() {
                 </p>
 
               )}
-
 
             </form>
 
@@ -1609,9 +1523,7 @@ function App() {
       )}
 
 
-      {/* ==================================
-          RECORD SALE MODAL
-      ================================== */}
+      {/* RECORD SALE MODAL */}
 
       {showSaleForm && (
 
@@ -1625,7 +1537,6 @@ function App() {
                 Record Sale
               </h2>
 
-
               <button
                 type="button"
                 className="close-button"
@@ -1636,13 +1547,11 @@ function App() {
 
             </div>
 
-
             <form
               onSubmit={
                 handleRecordSale
               }
             >
-
 
               <select
                 name="customer_id"
@@ -1658,7 +1567,6 @@ function App() {
                 <option value="">
                   Select Customer
                 </option>
-
 
                 {customers.map(
                   (customer) => (
@@ -1681,7 +1589,6 @@ function App() {
 
               </select>
 
-
               <input
                 type="number"
                 name="amount"
@@ -1695,7 +1602,6 @@ function App() {
                 min="0"
                 required
               />
-
 
               <select
                 name="status"
@@ -1722,14 +1628,12 @@ function App() {
 
               </select>
 
-
               <button
                 type="submit"
                 className="submit-button"
               >
                 Record Sale
               </button>
-
 
               {message && (
 
@@ -1739,7 +1643,6 @@ function App() {
 
               )}
 
-
             </form>
 
           </div>
@@ -1747,7 +1650,6 @@ function App() {
         </div>
 
       )}
-
 
     </div>
 
