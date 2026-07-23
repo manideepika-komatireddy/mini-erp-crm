@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import "./App.css";
 
@@ -7,30 +6,215 @@ const API_URL =
 
 interface User {
   id: number;
+  name: string;
   email: string;
   role: string;
 }
 
-interface DashboardResponse {
+interface AuthResponse {
   message: string;
-  user: User;
+  token?: string;
+  user?: User;
 }
+
+type Page =
+  | "dashboard"
+  | "admin"
+  | "manager"
+  | "employee"
+  | "sales"
+  | "users"
+  | "profile";
 
 function App() {
   // ==========================================
-  // STATE
+  // AUTH STATE
   // ==========================================
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem("user");
+
+    if (!savedUser) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(savedUser);
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem("token");
+  });
+
+  const [loading, setLoading] = useState<boolean>(
+    () => !!localStorage.getItem("token")
+  );
+
+  const [activePage, setActivePage] =
+    useState<Page>("dashboard");
+
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [activePage, setActivePage] = useState("dashboard");
 
   // ==========================================
-  // GET TOKEN
+  // AUTH FORM STATE
   // ==========================================
 
-  const token = localStorage.getItem("token");
+  const [isRegistering, setIsRegistering] =
+    useState(false);
+
+  const [authLoading, setAuthLoading] =
+    useState(false);
+
+  const [authForm, setAuthForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "employee",
+  });
+
+  // ==========================================
+  // AUTH INPUT
+  // ==========================================
+
+  const handleAuthInputChange = (
+    event: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement
+    >
+  ) => {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setAuthForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  // ==========================================
+  // LOGIN / REGISTER
+  // ==========================================
+
+  const handleAuthSubmit = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    setAuthLoading(true);
+    setMessage("");
+
+    const endpoint = isRegistering
+      ? "/api/auth/register"
+      : "/api/auth/login";
+
+    const body = isRegistering
+      ? {
+          name: authForm.name,
+          email: authForm.email,
+          password: authForm.password,
+          role: authForm.role,
+        }
+      : {
+          email: authForm.email,
+          password: authForm.password,
+        };
+
+    try {
+      const response = await fetch(
+        `${API_URL}${endpoint}`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify(body),
+        }
+      );
+
+      const result: AuthResponse =
+        await response.json();
+
+      if (!response.ok) {
+        setMessage(
+          result.message ||
+            "Authentication failed"
+        );
+
+        return;
+      }
+
+      // ========================================
+      // REGISTER SUCCESS
+      // ========================================
+
+      if (isRegistering) {
+        setMessage(
+          "Registration successful. Please login."
+        );
+
+        setIsRegistering(false);
+
+        setAuthForm({
+          name: "",
+          email: authForm.email,
+          password: "",
+          role: "employee",
+        });
+
+        return;
+      }
+
+      // ========================================
+      // LOGIN SUCCESS
+      // ========================================
+
+      if (
+        result.token &&
+        result.user
+      ) {
+        localStorage.setItem(
+          "token",
+          result.token
+        );
+
+        localStorage.setItem(
+          "user",
+          JSON.stringify(result.user)
+        );
+
+        setToken(result.token);
+
+        setUser(result.user);
+
+        setActivePage(
+          "dashboard"
+        );
+
+        setMessage(
+          "Login successful"
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Authentication error:",
+        error
+      );
+
+      setMessage(
+        "Could not connect to backend"
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   // ==========================================
   // API REQUEST HELPER
@@ -39,106 +223,107 @@ function App() {
   const apiRequest = async (
     endpoint: string
   ) => {
-    try {
-      const response = await fetch(
-        `${API_URL}${endpoint}`,
-        {
-          method: "GET",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              `Bearer ${token}`,
-          },
-        }
+    if (!token) {
+      throw new Error(
+        "Authentication token missing"
       );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message ||
-          "Request failed"
-        );
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error(
-        "API Error:",
-        error
-      );
-
-      throw error;
     }
+
+    const response = await fetch(
+      `${API_URL}${endpoint}`,
+      {
+        method: "GET",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.message ||
+          "Request failed"
+      );
+    }
+
+    return result;
   };
 
   // ==========================================
-  // LOAD DASHBOARD
+  // VERIFY LOGIN
   // ==========================================
 
-  const loadDashboard =
-    async () => {
+  const loadDashboard = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
-      if (!token) {
-        setMessage(
-          "No login token found. Please login first."
+    try {
+      const result =
+        await apiRequest(
+          "/api/dashboard"
         );
 
-        setLoading(false);
+      if (result.user) {
+        setUser(result.user);
 
-        return;
+        localStorage.setItem(
+          "user",
+          JSON.stringify(
+            result.user
+          )
+        );
       }
 
-      try {
+      setMessage(
+        result.message ||
+          "Dashboard loaded successfully"
+      );
+    } catch (error) {
+      console.error(
+        "Dashboard error:",
+        error
+      );
 
-        const result =
-          await apiRequest(
-            "/api/dashboard"
-          );
+      localStorage.removeItem(
+        "token"
+      );
 
-        setUser(
-          result.user
-        );
+      localStorage.removeItem(
+        "user"
+      );
 
-        setMessage(
-          result.message
-        );
+      setToken(null);
 
-      } catch (error) {
+      setUser(null);
 
-        console.error(
-          "Dashboard error:",
-          error
-        );
-
-        setMessage(
-          "Unable to load dashboard. Please login again."
-        );
-
-        localStorage.removeItem(
-          "token"
-        );
-
-      } finally {
-
-        setLoading(false);
-
-      }
-    };
+      setMessage(
+        "Session expired. Please login again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ==========================================
   // INITIAL LOAD
   // ==========================================
 
   useEffect(() => {
-
-    loadDashboard();
-
+    if (token) {
+      loadDashboard();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   // ==========================================
@@ -146,7 +331,6 @@ function App() {
   // ==========================================
 
   const handleLogout = () => {
-
     localStorage.removeItem(
       "token"
     );
@@ -155,214 +339,87 @@ function App() {
       "user"
     );
 
+    setToken(null);
+
     setUser(null);
 
-    window.location.reload();
+    setActivePage(
+      "dashboard"
+    );
 
+    setMessage("");
   };
 
   // ==========================================
-  // ADMIN DASHBOARD
+  // OPEN ROLE PAGE
   // ==========================================
 
-  const openAdminDashboard =
-    async () => {
-
-      try {
-
-        const result =
-          await apiRequest(
-            "/api/dashboard/admin"
-          );
-
-        setActivePage(
-          "admin"
+  const openRolePage = async (
+    endpoint: string,
+    page: Page,
+    errorMessage: string
+  ) => {
+    try {
+      const result =
+        await apiRequest(
+          endpoint
         );
 
-        setMessage(
-          result.message
-        );
+      setActivePage(page);
 
-      } catch (error) {
+      setMessage(
+        result.message
+      );
+    } catch (error) {
+      console.error(
+        "Access error:",
+        error
+      );
 
-        setMessage(
-          "Admin access denied"
-        );
-
-      }
-    };
+      setMessage(
+        errorMessage
+      );
+    }
+  };
 
   // ==========================================
-  // MANAGER DASHBOARD
+  // PAGE TITLE
   // ==========================================
 
-  const openManagerDashboard =
-    async () => {
+  const getPageTitle = () => {
+    switch (activePage) {
+      case "admin":
+        return "Admin Dashboard";
 
-      try {
+      case "manager":
+        return "Manager Dashboard";
 
-        const result =
-          await apiRequest(
-            "/api/dashboard/manager"
-          );
+      case "employee":
+        return "Employee Dashboard";
 
-        setActivePage(
-          "manager"
-        );
+      case "sales":
+        return "Sales";
 
-        setMessage(
-          result.message
-        );
+      case "users":
+        return "User Management";
 
-      } catch (error) {
+      case "profile":
+        return "Profile";
 
-        setMessage(
-          "Manager access denied"
-        );
-
-      }
-    };
-
-  // ==========================================
-  // EMPLOYEE DASHBOARD
-  // ==========================================
-
-  const openEmployeeDashboard =
-    async () => {
-
-      try {
-
-        const result =
-          await apiRequest(
-            "/api/dashboard/employee"
-          );
-
-        setActivePage(
-          "employee"
-        );
-
-        setMessage(
-          result.message
-        );
-
-      } catch (error) {
-
-        setMessage(
-          "Employee access denied"
-        );
-
-      }
-    };
-
-  // ==========================================
-  // USER MANAGEMENT
-  // ADMIN ONLY
-  // ==========================================
-
-  const openUserManagement =
-    async () => {
-
-      try {
-
-        const result =
-          await apiRequest(
-            "/api/dashboard/users"
-          );
-
-        setActivePage(
-          "users"
-        );
-
-        setMessage(
-          result.message
-        );
-
-      } catch (error) {
-
-        setMessage(
-          "Only administrators can access User Management"
-        );
-
-      }
-    };
-
-  // ==========================================
-  // SALES
-  // ADMIN + MANAGER
-  // ==========================================
-
-  const openSales =
-    async () => {
-
-      try {
-
-        const result =
-          await apiRequest(
-            "/api/dashboard/sales"
-          );
-
-        setActivePage(
-          "sales"
-        );
-
-        setMessage(
-          result.message
-        );
-
-      } catch (error) {
-
-        setMessage(
-          "Only Admin and Manager can access Sales"
-        );
-
-      }
-    };
-
-  // ==========================================
-  // PROFILE
-  // ==========================================
-
-  const openProfile =
-    async () => {
-
-      try {
-
-        const result =
-          await apiRequest(
-            "/api/dashboard/profile"
-          );
-
-        setActivePage(
-          "profile"
-        );
-
-        setMessage(
-          result.message
-        );
-
-      } catch (error) {
-
-        setMessage(
-          "Unable to load profile"
-        );
-
-      }
-    };
+      default:
+        return "Dashboard";
+    }
+  };
 
   // ==========================================
   // LOADING SCREEN
   // ==========================================
 
   if (loading) {
-
     return (
-
       <div className="app">
-
         <main className="main-content">
-
           <div className="overview-card">
-
             <h2>
               Loading Dashboard...
             </h2>
@@ -370,68 +427,167 @@ function App() {
             <p>
               Connecting to backend...
             </p>
-
           </div>
-
         </main>
-
       </div>
-
     );
-
   }
 
   // ==========================================
-  // NO TOKEN
+  // LOGIN / REGISTER PAGE
   // ==========================================
 
-  if (!token) {
-
+  if (!token || !user) {
     return (
-
       <div className="app">
-
         <main className="main-content">
-
-          <div className="overview-card">
-
+          <div
+            className="overview-card"
+            style={{
+              maxWidth: "500px",
+              margin: "80px auto",
+            }}
+          >
             <h1>
               Mini ERP CRM
             </h1>
 
             <h2>
-              Authentication Required
+              {isRegistering
+                ? "Create Account"
+                : "Login"}
             </h2>
 
             <p>
-              Please login to access your dashboard.
+              {isRegistering
+                ? "Create a new account to access the ERP CRM."
+                : "Login to access your ERP CRM dashboard."}
             </p>
 
-            <p className="form-message">
-              {message}
-            </p>
+            <form
+              onSubmit={
+                handleAuthSubmit
+              }
+            >
+              {isRegistering && (
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Full Name"
+                  value={
+                    authForm.name
+                  }
+                  onChange={
+                    handleAuthInputChange
+                  }
+                  required
+                />
+              )}
 
+              <input
+                type="email"
+                name="email"
+                placeholder="Email Address"
+                value={
+                  authForm.email
+                }
+                onChange={
+                  handleAuthInputChange
+                }
+                required
+              />
+
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={
+                  authForm.password
+                }
+                onChange={
+                  handleAuthInputChange
+                }
+                required
+              />
+
+              {isRegistering && (
+                <select
+                  name="role"
+                  value={
+                    authForm.role
+                  }
+                  onChange={
+                    handleAuthInputChange
+                  }
+                >
+                  <option value="employee">
+                    Employee
+                  </option>
+
+                  <option value="manager">
+                    Manager
+                  </option>
+
+                  <option value="admin">
+                    Admin
+                  </option>
+                </select>
+              )}
+
+              <button
+                type="submit"
+                disabled={
+                  authLoading
+                }
+              >
+                {authLoading
+                  ? "Please wait..."
+                  : isRegistering
+                  ? "Create Account"
+                  : "Login"}
+              </button>
+            </form>
+
+            {message && (
+              <p className="form-message">
+                {message}
+              </p>
+            )}
+
+            <div
+              style={{
+                marginTop: "20px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegistering(
+                    !isRegistering
+                  );
+
+                  setMessage("");
+                }}
+              >
+                {isRegistering
+                  ? "Already have an account? Login"
+                  : "Don't have an account? Register"}
+              </button>
+            </div>
           </div>
-
         </main>
-
       </div>
-
     );
-
   }
 
   // ==========================================
-  // MAIN UI
+  // MAIN DASHBOARD
   // ==========================================
 
   return (
-
     <div className="app">
 
-      {/* =====================================
-          SIDEBAR
-      ====================================== */}
+      {/* SIDEBAR */}
 
       <aside className="sidebar">
 
@@ -448,132 +604,129 @@ function App() {
                 : ""
             }
             onClick={() => {
-
               setActivePage(
                 "dashboard"
               );
 
               loadDashboard();
-
             }}
           >
             Dashboard
           </a>
 
-
-          {/* ADMIN */}
-
-          {user?.role === "admin" && (
-
+          {user.role === "admin" && (
             <a
               className={
                 activePage === "admin"
                   ? "active"
                   : ""
               }
-              onClick={
-                openAdminDashboard
+              onClick={() =>
+                openRolePage(
+                  "/api/dashboard/admin",
+                  "admin",
+                  "Admin access denied"
+                )
               }
             >
               Admin Dashboard
             </a>
-
           )}
 
-
-          {/* MANAGER */}
-
-          {(user?.role === "admin" ||
-            user?.role === "manager") && (
-
+          {(user.role === "admin" ||
+            user.role ===
+              "manager") && (
             <a
               className={
                 activePage === "manager"
                   ? "active"
                   : ""
               }
-              onClick={
-                openManagerDashboard
+              onClick={() =>
+                openRolePage(
+                  "/api/dashboard/manager",
+                  "manager",
+                  "Manager access denied"
+                )
               }
             >
               Manager Dashboard
             </a>
-
           )}
 
-
-          {/* EMPLOYEE */}
-
-          {(user?.role === "admin" ||
-            user?.role === "manager" ||
-            user?.role === "employee") && (
-
+          {(user.role === "admin" ||
+            user.role === "manager" ||
+            user.role ===
+              "employee") && (
             <a
               className={
                 activePage === "employee"
                   ? "active"
                   : ""
               }
-              onClick={
-                openEmployeeDashboard
+              onClick={() =>
+                openRolePage(
+                  "/api/dashboard/employee",
+                  "employee",
+                  "Employee access denied"
+                )
               }
             >
               Employee Dashboard
             </a>
-
           )}
 
-
-          {/* SALES */}
-
-          {(user?.role === "admin" ||
-            user?.role === "manager") && (
-
+          {(user.role === "admin" ||
+            user.role ===
+              "manager") && (
             <a
               className={
                 activePage === "sales"
                   ? "active"
                   : ""
               }
-              onClick={
-                openSales
+              onClick={() =>
+                openRolePage(
+                  "/api/dashboard/sales",
+                  "sales",
+                  "Only Admin and Manager can access Sales"
+                )
               }
             >
               Sales
             </a>
-
           )}
 
-
-          {/* USER MANAGEMENT */}
-
-          {user?.role === "admin" && (
-
+          {user.role === "admin" && (
             <a
               className={
                 activePage === "users"
                   ? "active"
                   : ""
               }
-              onClick={
-                openUserManagement
+              onClick={() =>
+                openRolePage(
+                  "/api/dashboard/users",
+                  "users",
+                  "Only administrators can access User Management"
+                )
               }
             >
               User Management
             </a>
-
           )}
 
         </nav>
 
-
-        {/* SIDEBAR BOTTOM */}
-
         <div className="sidebar-bottom">
 
           <a
-            onClick={
-              openProfile
+            onClick={() =>
+              openRolePage(
+                "/api/dashboard/profile",
+                "profile",
+                "Unable to load profile"
+              )
             }
           >
             Profile
@@ -591,13 +744,9 @@ function App() {
 
       </aside>
 
-
-      {/* =====================================
-          MAIN CONTENT
-      ====================================== */}
+      {/* MAIN CONTENT */}
 
       <main className="main-content">
-
 
         {/* HEADER */}
 
@@ -606,49 +755,34 @@ function App() {
           <div>
 
             <h1>
-              {activePage === "dashboard"
-                ? "Dashboard"
-                : activePage === "admin"
-                ? "Admin Dashboard"
-                : activePage === "manager"
-                ? "Manager Dashboard"
-                : activePage === "employee"
-                ? "Employee Dashboard"
-                : activePage === "sales"
-                ? "Sales"
-                : activePage === "users"
-                ? "User Management"
-                : "Profile"}
+              {getPageTitle()}
             </h1>
 
             <p>
-              Welcome back! Here's your
-              Mini ERP CRM workspace.
+              Welcome back,{" "}
+              {user.name || user.email}.
             </p>
 
           </div>
 
-
-          {/* PROFILE */}
-
           <div className="profile">
 
             <div className="avatar">
-
-              {user?.email
-                ?.charAt(0)
+              {(user.name ||
+                user.email)
+                .charAt(0)
                 .toUpperCase()}
-
             </div>
 
             <div>
 
               <strong>
-                {user?.email}
+                {user.name ||
+                  user.email}
               </strong>
 
               <span>
-                {user?.role}
+                {user.role}
               </span>
 
             </div>
@@ -657,13 +791,9 @@ function App() {
 
         </header>
 
-
-        {/* =====================================
-            DASHBOARD CARDS
-        ====================================== */}
+        {/* DASHBOARD CARDS */}
 
         <section className="dashboard-cards">
-
 
           <div className="card">
 
@@ -674,66 +804,22 @@ function App() {
             <div>
 
               <p>
-                Your Role
-              </p>
-
-              <h2>
-                {user?.role
-                  ?.toUpperCase()}
-              </h2>
-
-            </div>
-
-          </div>
-
-
-          <div className="card">
-
-            <div className="card-icon">
-              👤
-            </div>
-
-            <div>
-
-              <p>
-                User ID
-              </p>
-
-              <h2>
-                {user?.id}
-              </h2>
-
-            </div>
-
-          </div>
-
-
-          <div className="card">
-
-            <div className="card-icon">
-              🛡️
-            </div>
-
-            <div>
-
-              <p>
                 Access Level
               </p>
 
               <h2>
-
-                {user?.role === "admin"
+                {user.role ===
+                "admin"
                   ? "Full"
-                  : user?.role === "manager"
+                  : user.role ===
+                    "manager"
                   ? "Manager"
                   : "Employee"}
-
               </h2>
 
             </div>
 
           </div>
-
 
           <div className="card">
 
@@ -755,40 +841,61 @@ function App() {
 
           </div>
 
+          <div className="card">
+
+            <div className="card-icon">
+              👤
+            </div>
+
+            <div>
+
+              <p>
+                Role
+              </p>
+
+              <h2>
+                {user.role}
+              </h2>
+
+            </div>
+
+          </div>
 
         </section>
 
-
-        {/* =====================================
-            CURRENT PAGE
-        ====================================== */}
+        {/* OVERVIEW */}
 
         <section className="overview">
-
-
-          {/* ACCESS INFORMATION */}
 
           <div className="overview-card">
 
             <h2>
-              {activePage === "dashboard"
-                ? "Dashboard Overview"
-                : "Access Information"}
+              Account Overview
             </h2>
-
 
             <div className="overview-item">
 
               <span>
-                Logged in as
+                Name
               </span>
 
               <strong>
-                {user?.email}
+                {user.name}
               </strong>
 
             </div>
 
+            <div className="overview-item">
+
+              <span>
+                Email
+              </span>
+
+              <strong>
+                {user.email}
+              </strong>
+
+            </div>
 
             <div className="overview-item">
 
@@ -797,24 +904,10 @@ function App() {
               </span>
 
               <strong>
-                {user?.role}
+                {user.role}
               </strong>
 
             </div>
-
-
-            <div className="overview-item">
-
-              <span>
-                Current Page
-              </span>
-
-              <strong>
-                {activePage}
-              </strong>
-
-            </div>
-
 
             <div className="overview-item">
 
@@ -830,8 +923,7 @@ function App() {
 
           </div>
 
-
-          {/* QUICK ACTIONS */}
+          {/* AVAILABLE ACTIONS */}
 
           <div className="overview-card">
 
@@ -839,92 +931,101 @@ function App() {
               Available Actions
             </h2>
 
-
-            {user?.role === "admin" && (
-
+            {user.role ===
+              "admin" && (
               <button
                 type="button"
-                onClick={
-                  openAdminDashboard
+                onClick={() =>
+                  openRolePage(
+                    "/api/dashboard/admin",
+                    "admin",
+                    "Admin access denied"
+                  )
                 }
               >
                 Open Admin Dashboard
               </button>
-
             )}
 
-
-            {(user?.role === "admin" ||
-              user?.role === "manager") && (
-
+            {(user.role ===
+              "admin" ||
+              user.role ===
+                "manager") && (
               <button
                 type="button"
-                onClick={
-                  openManagerDashboard
+                onClick={() =>
+                  openRolePage(
+                    "/api/dashboard/manager",
+                    "manager",
+                    "Manager access denied"
+                  )
                 }
               >
                 Open Manager Dashboard
               </button>
-
             )}
 
-
-            {(user?.role === "admin" ||
-              user?.role === "manager" ||
-              user?.role === "employee") && (
-
+            {(user.role ===
+              "admin" ||
+              user.role ===
+                "manager" ||
+              user.role ===
+                "employee") && (
               <button
                 type="button"
-                onClick={
-                  openEmployeeDashboard
+                onClick={() =>
+                  openRolePage(
+                    "/api/dashboard/employee",
+                    "employee",
+                    "Employee access denied"
+                  )
                 }
               >
                 Open Employee Dashboard
               </button>
-
             )}
 
-
-            {(user?.role === "admin" ||
-              user?.role === "manager") && (
-
+            {(user.role ===
+              "admin" ||
+              user.role ===
+                "manager") && (
               <button
                 type="button"
-                onClick={
-                  openSales
+                onClick={() =>
+                  openRolePage(
+                    "/api/dashboard/sales",
+                    "sales",
+                    "Only Admin and Manager can access Sales"
+                  )
                 }
               >
                 Access Sales
               </button>
-
             )}
 
-
-            {user?.role === "admin" && (
-
+            {user.role ===
+              "admin" && (
               <button
                 type="button"
-                onClick={
-                  openUserManagement
+                onClick={() =>
+                  openRolePage(
+                    "/api/dashboard/users",
+                    "users",
+                    "Only administrators can access User Management"
+                  )
                 }
               >
                 Manage Users
               </button>
-
             )}
 
           </div>
 
-
         </section>
 
-
-        {/* =====================================
-            SERVER MESSAGE
-        ====================================== */}
+        {/* SERVER MESSAGE */}
 
         {message && (
-
           <div className="overview-card">
 
             <h2>
@@ -936,17 +1037,12 @@ function App() {
             </p>
 
           </div>
-
         )}
-
 
       </main>
 
     </div>
-
   );
-
 }
 
 export default App;
-
