@@ -3,6 +3,15 @@ import pool from "./database";
 const createTables = async () => {
   try {
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS customers (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -39,9 +48,18 @@ const createTables = async () => {
       );
     `);
 
-    console.log("Database tables created successfully");
+    console.log(
+      "Database tables created successfully"
+    );
+
   } catch (error) {
-    console.error("Error creating database tables:", error);
+
+    console.error(
+      "Error creating database tables:",
+      error
+    );
+
+    throw error;
   }
 };
 

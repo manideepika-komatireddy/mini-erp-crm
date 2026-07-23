@@ -9,6 +9,11 @@ const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+
+  // Neon PostgreSQL requires SSL
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 pool.on(

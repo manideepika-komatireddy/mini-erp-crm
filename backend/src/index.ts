@@ -4,10 +4,11 @@ import cors = require("cors");
 import dashboardRoutes = require("./routes/dashboardRoutes");
 import authRoutes = require("./routes/authRoutes");
 
+import createTables from "./config/initDatabase";
+
 const app = express();
 
 console.log("🔥 THIS IS THE BACKEND INDEX.TS FILE");
-
 
 // ==========================================
 // MIDDLEWARE
@@ -58,18 +59,43 @@ app.get(
 
 
 // ==========================================
-// START SERVER
+// SERVER PORT
 // ==========================================
 
-const PORT =Number(process.env.PORT) || 5000;
+const PORT =
+  Number(process.env.PORT) || 5000;
 
-app.listen(
-  PORT,
-  () => {
-    console.log(
-      `Backend running on http://localhost:${PORT}`
+
+// ==========================================
+// INITIALIZE DATABASE
+// THEN START SERVER
+// ==========================================
+
+createTables()
+  .then(() => {
+
+    app.listen(
+      PORT,
+      () => {
+
+        console.log(
+          `Backend running on http://localhost:${PORT}`
+        );
+
+      }
+
     );
-  }
-);
+
+  })
+
+  .catch((error) => {
+
+    console.error(
+      "Failed to initialize database:",
+      error
+    );
+
+  });
+
 
 export = app;
