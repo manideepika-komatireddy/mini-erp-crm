@@ -1,773 +1,437 @@
+```tsx
 import { useEffect, useState } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
 import "./App.css";
-
-// ==========================================
-// DEPLOYED BACKEND URL
-// ==========================================
 
 const API_URL =
   "https://mini-erp-crm-backend-zpdv.onrender.com";
 
-
-// ==========================================
-// INTERFACES
-// ==========================================
-
-interface DashboardData {
-  customers: number;
-  leads: number;
-  products: number;
-  totalSales: number;
-}
-
-interface SalesData {
-  month: string;
-  sales: number;
-}
-
-interface Customer {
+interface User {
   id: number;
-  name: string;
   email: string;
-  phone: string;
-  company: string;
+  role: string;
 }
 
-
-// ==========================================
-// APP
-// ==========================================
+interface DashboardResponse {
+  message: string;
+  user: User;
+}
 
 function App() {
+  // ==========================================
+  // STATE
+  // ==========================================
 
-  // ========================================
-  // DASHBOARD STATE
-  // ========================================
+  const [user, setUser] = useState<User | null>(null);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [activePage, setActivePage] = useState("dashboard");
 
-  const [data, setData] =
-    useState<DashboardData>({
-      customers: 0,
-      leads: 0,
-      products: 0,
-      totalSales: 0,
-    });
+  // ==========================================
+  // GET TOKEN
+  // ==========================================
 
-  const [salesData, setSalesData] =
-    useState<SalesData[]>([]);
+  const token = localStorage.getItem("token");
 
-  const [customers, setCustomers] =
-    useState<Customer[]>([]);
+  // ==========================================
+  // API REQUEST HELPER
+  // ==========================================
 
-
-  // ========================================
-  // MODAL STATE
-  // ========================================
-
-  const [showCustomerForm, setShowCustomerForm] =
-    useState(false);
-
-  const [showLeadForm, setShowLeadForm] =
-    useState(false);
-
-  const [showProductForm, setShowProductForm] =
-    useState(false);
-
-  const [showSaleForm, setShowSaleForm] =
-    useState(false);
-
-
-  // ========================================
-  // MESSAGE
-  // ========================================
-
-  const [message, setMessage] =
-    useState("");
-
-
-  // ========================================
-  // CUSTOMER FORM
-  // ========================================
-
-  const [customerForm, setCustomerForm] =
-    useState({
-      name: "",
-      email: "",
-      phone: "",
-      company: "",
-    });
-
-
-  // ========================================
-  // LEAD FORM
-  // ========================================
-
-  const [leadForm, setLeadForm] =
-    useState({
-      name: "",
-      email: "",
-      phone: "",
-      status: "New",
-    });
-
-
-  // ========================================
-  // PRODUCT FORM
-  // ========================================
-
-  const [productForm, setProductForm] =
-    useState({
-      name: "",
-      category: "",
-      price: "",
-      stock: "",
-    });
-
-
-  // ========================================
-  // SALE FORM
-  // ========================================
-
-  const [saleForm, setSaleForm] =
-    useState({
-      customer_id: "",
-      amount: "",
-      status: "Completed",
-    });
-
-
-  // ========================================
-  // FETCH DASHBOARD
-  // ========================================
-
-  const fetchDashboardData = async () => {
-
+  const apiRequest = async (
+    endpoint: string
+  ) => {
     try {
-
       const response = await fetch(
-        `${API_URL}/api/dashboard`
+        `${API_URL}${endpoint}`,
+        {
+          method: "GET",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
       );
 
       const result =
         await response.json();
 
       if (!response.ok) {
-        console.error(
-          "Dashboard API error:",
-          result
+        throw new Error(
+          result.message ||
+          "Request failed"
         );
-        return;
       }
 
-      setData(result);
+      return result;
 
     } catch (error) {
-
       console.error(
-        "Dashboard error:",
+        "API Error:",
         error
       );
 
+      throw error;
     }
-
   };
 
+  // ==========================================
+  // LOAD DASHBOARD
+  // ==========================================
 
-  // ========================================
-  // FETCH SALES
-  // ========================================
+  const loadDashboard =
+    async () => {
 
-  const fetchSalesData = async () => {
-
-    try {
-
-      const response = await fetch(
-        `${API_URL}/api/dashboard/sales-overview`
-      );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
-        console.error(
-          "Sales API error:",
-          result
+      if (!token) {
+        setMessage(
+          "No login token found. Please login first."
         );
+
+        setLoading(false);
+
         return;
       }
 
-      setSalesData(result);
+      try {
 
-    } catch (error) {
+        const result =
+          await apiRequest(
+            "/api/dashboard"
+          );
 
-      console.error(
-        "Sales error:",
-        error
-      );
-
-    }
-
-  };
-
-
-  // ========================================
-  // FETCH CUSTOMERS
-  // ========================================
-
-  const fetchCustomers = async () => {
-
-    try {
-
-      const response = await fetch(
-        `${API_URL}/api/dashboard/customers`
-      );
-
-      if (!response.ok) {
-        console.error(
-          "Customers API error"
+        setUser(
+          result.user
         );
-        return;
+
+        setMessage(
+          result.message
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Dashboard error:",
+          error
+        );
+
+        setMessage(
+          "Unable to load dashboard. Please login again."
+        );
+
+        localStorage.removeItem(
+          "token"
+        );
+
+      } finally {
+
+        setLoading(false);
+
       }
+    };
 
-      const result =
-        await response.json();
-
-      setCustomers(result);
-
-    } catch (error) {
-
-      console.error(
-        "Customers error:",
-        error
-      );
-
-    }
-
-  };
-
-
-  // ========================================
+  // ==========================================
   // INITIAL LOAD
-  // ========================================
+  // ==========================================
 
   useEffect(() => {
 
-    fetchDashboardData();
-
-    fetchSalesData();
-
-    fetchCustomers();
+    loadDashboard();
 
   }, []);
 
+  // ==========================================
+  // LOGOUT
+  // ==========================================
 
-  // ========================================
-  // CLOSE ALL FORMS
-  // ========================================
+  const handleLogout = () => {
 
-  const closeAllForms = () => {
+    localStorage.removeItem(
+      "token"
+    );
 
-    setShowCustomerForm(false);
+    localStorage.removeItem(
+      "user"
+    );
 
-    setShowLeadForm(false);
+    setUser(null);
 
-    setShowProductForm(false);
-
-    setShowSaleForm(false);
-
-    setMessage("");
+    window.location.reload();
 
   };
 
+  // ==========================================
+  // ADMIN DASHBOARD
+  // ==========================================
 
-  // ========================================
-  // CUSTOMER INPUT
-  // ========================================
+  const openAdminDashboard =
+    async () => {
 
-  const handleCustomerInputChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+      try {
 
-    const {
-      name,
-      value,
-    } = event.target;
+        const result =
+          await apiRequest(
+            "/api/dashboard/admin"
+          );
 
-    setCustomerForm(
-      (previous) => ({
-
-        ...previous,
-
-        [name]: value,
-
-      })
-    );
-
-  };
-
-
-  // ========================================
-  // LEAD INPUT
-  // ========================================
-
-  const handleLeadInputChange = (
-    event: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement
-    >
-  ) => {
-
-    const {
-      name,
-      value,
-    } = event.target;
-
-    setLeadForm(
-      (previous) => ({
-
-        ...previous,
-
-        [name]: value,
-
-      })
-    );
-
-  };
-
-
-  // ========================================
-  // PRODUCT INPUT
-  // ========================================
-
-  const handleProductInputChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-
-    const {
-      name,
-      value,
-    } = event.target;
-
-    setProductForm(
-      (previous) => ({
-
-        ...previous,
-
-        [name]: value,
-
-      })
-    );
-
-  };
-
-
-  // ========================================
-  // SALE INPUT
-  // ========================================
-
-  const handleSaleInputChange = (
-    event: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement
-    >
-  ) => {
-
-    const {
-      name,
-      value,
-    } = event.target;
-
-    setSaleForm(
-      (previous) => ({
-
-        ...previous,
-
-        [name]: value,
-
-      })
-    );
-
-  };
-
-
-  // ========================================
-  // ADD CUSTOMER
-  // ========================================
-
-  const handleAddCustomer = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-
-    event.preventDefault();
-
-    setMessage(
-      "Adding customer..."
-    );
-
-    try {
-
-      const response =
-        await fetch(
-          `${API_URL}/api/dashboard/customers`,
-          {
-
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify(
-                customerForm
-              ),
-
-          }
+        setActivePage(
+          "admin"
         );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
 
         setMessage(
-          result.message ||
-          "Failed to add customer"
+          result.message
         );
 
-        return;
-
-      }
-
-      setMessage(
-        "Customer added successfully!"
-      );
-
-      setCustomerForm({
-
-        name: "",
-
-        email: "",
-
-        phone: "",
-
-        company: "",
-
-      });
-
-      await fetchDashboardData();
-
-      await fetchCustomers();
-
-      setTimeout(() => {
-
-        closeAllForms();
-
-      }, 1200);
-
-    } catch (error) {
-
-      console.error(
-        "Add customer error:",
-        error
-      );
-
-      setMessage(
-        "Could not connect to backend"
-      );
-
-    }
-
-  };
-
-
-  // ========================================
-  // ADD LEAD
-  // ========================================
-
-  const handleAddLead = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-
-    event.preventDefault();
-
-    setMessage(
-      "Adding lead..."
-    );
-
-    try {
-
-      const response =
-        await fetch(
-          `${API_URL}/api/dashboard/leads`,
-          {
-
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify(
-                leadForm
-              ),
-
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
+      } catch (error) {
 
         setMessage(
-          result.message ||
-          "Failed to add lead"
+          "Admin access denied"
         );
-
-        return;
 
       }
+    };
 
-      setMessage(
-        "Lead added successfully!"
-      );
+  // ==========================================
+  // MANAGER DASHBOARD
+  // ==========================================
 
-      setLeadForm({
+  const openManagerDashboard =
+    async () => {
 
-        name: "",
+      try {
 
-        email: "",
+        const result =
+          await apiRequest(
+            "/api/dashboard/manager"
+          );
 
-        phone: "",
-
-        status: "New",
-
-      });
-
-      await fetchDashboardData();
-
-      setTimeout(() => {
-
-        closeAllForms();
-
-      }, 1200);
-
-    } catch (error) {
-
-      console.error(
-        "Add lead error:",
-        error
-      );
-
-      setMessage(
-        "Could not connect to backend"
-      );
-
-    }
-
-  };
-
-
-  // ========================================
-  // ADD PRODUCT
-  // ========================================
-
-  const handleAddProduct = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-
-    event.preventDefault();
-
-    setMessage(
-      "Adding product..."
-    );
-
-    try {
-
-      const response =
-        await fetch(
-          `${API_URL}/api/dashboard/products`,
-          {
-
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify(
-                productForm
-              ),
-
-          }
+        setActivePage(
+          "manager"
         );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
 
         setMessage(
-          result.message ||
-          "Failed to add product"
+          result.message
         );
 
-        return;
-
-      }
-
-      setMessage(
-        "Product added successfully!"
-      );
-
-      setProductForm({
-
-        name: "",
-
-        category: "",
-
-        price: "",
-
-        stock: "",
-
-      });
-
-      await fetchDashboardData();
-
-      setTimeout(() => {
-
-        closeAllForms();
-
-      }, 1200);
-
-    } catch (error) {
-
-      console.error(
-        "Add product error:",
-        error
-      );
-
-      setMessage(
-        "Could not connect to backend"
-      );
-
-    }
-
-  };
-
-
-  // ========================================
-  // RECORD SALE
-  // ========================================
-
-  const handleRecordSale = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
-
-    event.preventDefault();
-
-    setMessage(
-      "Recording sale..."
-    );
-
-    try {
-
-      const response =
-        await fetch(
-          `${API_URL}/api/dashboard/sales`,
-          {
-
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify(
-                saleForm
-              ),
-
-          }
-        );
-
-      const result =
-        await response.json();
-
-      if (!response.ok) {
+      } catch (error) {
 
         setMessage(
-          result.message ||
-          "Failed to record sale"
+          "Manager access denied"
         );
 
-        return;
+      }
+    };
+
+  // ==========================================
+  // EMPLOYEE DASHBOARD
+  // ==========================================
+
+  const openEmployeeDashboard =
+    async () => {
+
+      try {
+
+        const result =
+          await apiRequest(
+            "/api/dashboard/employee"
+          );
+
+        setActivePage(
+          "employee"
+        );
+
+        setMessage(
+          result.message
+        );
+
+      } catch (error) {
+
+        setMessage(
+          "Employee access denied"
+        );
 
       }
+    };
 
-      setMessage(
-        "Sale recorded successfully!"
-      );
+  // ==========================================
+  // USER MANAGEMENT
+  // ADMIN ONLY
+  // ==========================================
 
-      setSaleForm({
+  const openUserManagement =
+    async () => {
 
-        customer_id: "",
+      try {
 
-        amount: "",
+        const result =
+          await apiRequest(
+            "/api/dashboard/users"
+          );
 
-        status: "Completed",
+        setActivePage(
+          "users"
+        );
 
-      });
+        setMessage(
+          result.message
+        );
 
-      await fetchDashboardData();
+      } catch (error) {
 
-      await fetchSalesData();
+        setMessage(
+          "Only administrators can access User Management"
+        );
 
-      setTimeout(() => {
+      }
+    };
 
-        closeAllForms();
+  // ==========================================
+  // SALES
+  // ADMIN + MANAGER
+  // ==========================================
 
-      }, 1200);
+  const openSales =
+    async () => {
 
-    } catch (error) {
+      try {
 
-      console.error(
-        "Record sale error:",
-        error
-      );
+        const result =
+          await apiRequest(
+            "/api/dashboard/sales"
+          );
 
-      setMessage(
-        "Could not connect to backend"
-      );
+        setActivePage(
+          "sales"
+        );
 
-    }
+        setMessage(
+          result.message
+        );
 
-  };
+      } catch (error) {
 
+        setMessage(
+          "Only Admin and Manager can access Sales"
+        );
 
-  // ========================================
-  // UI
-  // ========================================
+      }
+    };
+
+  // ==========================================
+  // PROFILE
+  // ==========================================
+
+  const openProfile =
+    async () => {
+
+      try {
+
+        const result =
+          await apiRequest(
+            "/api/dashboard/profile"
+          );
+
+        setActivePage(
+          "profile"
+        );
+
+        setMessage(
+          result.message
+        );
+
+      } catch (error) {
+
+        setMessage(
+          "Unable to load profile"
+        );
+
+      }
+    };
+
+  // ==========================================
+  // LOADING SCREEN
+  // ==========================================
+
+  if (loading) {
+
+    return (
+
+      <div className="app">
+
+        <main className="main-content">
+
+          <div className="overview-card">
+
+            <h2>
+              Loading Dashboard...
+            </h2>
+
+            <p>
+              Connecting to backend...
+            </p>
+
+          </div>
+
+        </main>
+
+      </div>
+
+    );
+
+  }
+
+  // ==========================================
+  // NO TOKEN
+  // ==========================================
+
+  if (!token) {
+
+    return (
+
+      <div className="app">
+
+        <main className="main-content">
+
+          <div className="overview-card">
+
+            <h1>
+              Mini ERP CRM
+            </h1>
+
+            <h2>
+              Authentication Required
+            </h2>
+
+            <p>
+              Please login to access your dashboard.
+            </p>
+
+            <p className="form-message">
+              {message}
+            </p>
+
+          </div>
+
+        </main>
+
+      </div>
+
+    );
+
+  }
+
+  // ==========================================
+  // MAIN UI
+  // ==========================================
 
   return (
 
     <div className="app">
 
-      {/* SIDEBAR */}
+      {/* =====================================
+          SIDEBAR
+      ====================================== */}
 
       <aside className="sidebar">
 
@@ -778,69 +442,148 @@ function App() {
         <nav>
 
           <a
-            className="active"
-            onClick={closeAllForms}
+            className={
+              activePage === "dashboard"
+                ? "active"
+                : ""
+            }
+            onClick={() => {
+
+              setActivePage(
+                "dashboard"
+              );
+
+              loadDashboard();
+
+            }}
           >
             Dashboard
           </a>
 
-          <a
-            onClick={() => {
 
-              closeAllForms();
+          {/* ADMIN */}
 
-              setShowCustomerForm(true);
+          {user?.role === "admin" && (
 
-            }}
-          >
-            Customers
-          </a>
+            <a
+              className={
+                activePage === "admin"
+                  ? "active"
+                  : ""
+              }
+              onClick={
+                openAdminDashboard
+              }
+            >
+              Admin Dashboard
+            </a>
 
-          <a
-            onClick={() => {
+          )}
 
-              closeAllForms();
 
-              setShowLeadForm(true);
+          {/* MANAGER */}
 
-            }}
-          >
-            Leads
-          </a>
+          {(user?.role === "admin" ||
+            user?.role === "manager") && (
 
-          <a
-            onClick={() => {
+            <a
+              className={
+                activePage === "manager"
+                  ? "active"
+                  : ""
+              }
+              onClick={
+                openManagerDashboard
+              }
+            >
+              Manager Dashboard
+            </a>
 
-              closeAllForms();
+          )}
 
-              setShowProductForm(true);
 
-            }}
-          >
-            Products
-          </a>
+          {/* EMPLOYEE */}
 
-          <a
-            onClick={() => {
+          {(user?.role === "admin" ||
+            user?.role === "manager" ||
+            user?.role === "employee") && (
 
-              closeAllForms();
+            <a
+              className={
+                activePage === "employee"
+                  ? "active"
+                  : ""
+              }
+              onClick={
+                openEmployeeDashboard
+              }
+            >
+              Employee Dashboard
+            </a>
 
-              setShowSaleForm(true);
+          )}
 
-            }}
-          >
-            Sales
-          </a>
+
+          {/* SALES */}
+
+          {(user?.role === "admin" ||
+            user?.role === "manager") && (
+
+            <a
+              className={
+                activePage === "sales"
+                  ? "active"
+                  : ""
+              }
+              onClick={
+                openSales
+              }
+            >
+              Sales
+            </a>
+
+          )}
+
+
+          {/* USER MANAGEMENT */}
+
+          {user?.role === "admin" && (
+
+            <a
+              className={
+                activePage === "users"
+                  ? "active"
+                  : ""
+              }
+              onClick={
+                openUserManagement
+              }
+            >
+              User Management
+            </a>
+
+          )}
 
         </nav>
 
+
+        {/* SIDEBAR BOTTOM */}
+
         <div className="sidebar-bottom">
 
-          <a>
-            Settings
+          <a
+            onClick={
+              openProfile
+            }
+          >
+            Profile
           </a>
 
-          <a>
+          <a
+            onClick={
+              handleLogout
+            }
+          >
             Logout
           </a>
 
@@ -849,9 +592,12 @@ function App() {
       </aside>
 
 
-      {/* MAIN CONTENT */}
+      {/* =====================================
+          MAIN CONTENT
+      ====================================== */}
 
       <main className="main-content">
+
 
         {/* HEADER */}
 
@@ -860,30 +606,49 @@ function App() {
           <div>
 
             <h1>
-              Dashboard
+              {activePage === "dashboard"
+                ? "Dashboard"
+                : activePage === "admin"
+                ? "Admin Dashboard"
+                : activePage === "manager"
+                ? "Manager Dashboard"
+                : activePage === "employee"
+                ? "Employee Dashboard"
+                : activePage === "sales"
+                ? "Sales"
+                : activePage === "users"
+                ? "User Management"
+                : "Profile"}
             </h1>
 
             <p>
-              Welcome back! Here's what's
-              happening with your business.
+              Welcome back! Here's your
+              Mini ERP CRM workspace.
             </p>
 
           </div>
 
+
+          {/* PROFILE */}
+
           <div className="profile">
 
             <div className="avatar">
-              M
+
+              {user?.email
+                ?.charAt(0)
+                .toUpperCase()}
+
             </div>
 
             <div>
 
               <strong>
-                Admin
+                {user?.email}
               </strong>
 
               <span>
-                Administrator
+                {user?.role}
               </span>
 
             </div>
@@ -893,24 +658,28 @@ function App() {
         </header>
 
 
-        {/* DASHBOARD CARDS */}
+        {/* =====================================
+            DASHBOARD CARDS
+        ====================================== */}
 
         <section className="dashboard-cards">
 
+
           <div className="card">
 
             <div className="card-icon">
-              👥
+              🔐
             </div>
 
             <div>
 
               <p>
-                Total Customers
+                Your Role
               </p>
 
               <h2>
-                {data.customers}
+                {user?.role
+                  ?.toUpperCase()}
               </h2>
 
             </div>
@@ -921,17 +690,17 @@ function App() {
           <div className="card">
 
             <div className="card-icon">
-              🎯
+              👤
             </div>
 
             <div>
 
               <p>
-                Total Leads
+                User ID
               </p>
 
               <h2>
-                {data.leads}
+                {user?.id}
               </h2>
 
             </div>
@@ -942,17 +711,23 @@ function App() {
           <div className="card">
 
             <div className="card-icon">
-              📦
+              🛡️
             </div>
 
             <div>
 
               <p>
-                Total Products
+                Access Level
               </p>
 
               <h2>
-                {data.products}
+
+                {user?.role === "admin"
+                  ? "Full"
+                  : user?.role === "manager"
+                  ? "Manager"
+                  : "Employee"}
+
               </h2>
 
             </div>
@@ -963,156 +738,92 @@ function App() {
           <div className="card">
 
             <div className="card-icon">
-              💰
+              ✅
             </div>
 
             <div>
 
               <p>
-                Total Sales
+                Status
               </p>
 
               <h2>
-                ₹
-                {data.totalSales.toLocaleString()}
+                Active
               </h2>
 
             </div>
 
           </div>
+
 
         </section>
 
 
-        {/* SALES CHART */}
-
-        <section className="chart-section">
-
-          <div className="chart-card">
-
-            <div className="chart-header">
-
-              <h2>
-                Sales Overview
-              </h2>
-
-              <p>
-                Monthly sales performance
-              </p>
-
-            </div>
-
-            <div className="chart-container">
-
-              {salesData.length > 0 ? (
-
-                <ResponsiveContainer
-                  width="100%"
-                  height={350}
-                >
-
-                  <LineChart
-                    data={salesData}
-                  >
-
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                    />
-
-                    <XAxis
-                      dataKey="month"
-                    />
-
-                    <YAxis />
-
-                    <Tooltip />
-
-                    <Line
-                      type="monotone"
-                      dataKey="sales"
-                      stroke="#2563eb"
-                      strokeWidth={3}
-                      dot={{
-                        r: 5,
-                      }}
-                    />
-
-                  </LineChart>
-
-                </ResponsiveContainer>
-
-              ) : (
-
-                <p className="no-data">
-                  No sales data available
-                </p>
-
-              )}
-
-            </div>
-
-          </div>
-
-        </section>
-
-
-        {/* BOTTOM SECTION */}
+        {/* =====================================
+            CURRENT PAGE
+        ====================================== */}
 
         <section className="overview">
 
-          {/* BUSINESS OVERVIEW */}
+
+          {/* ACCESS INFORMATION */}
 
           <div className="overview-card">
 
             <h2>
-              Business Overview
+              {activePage === "dashboard"
+                ? "Dashboard Overview"
+                : "Access Information"}
             </h2>
 
+
             <div className="overview-item">
 
               <span>
-                Customers
+                Logged in as
               </span>
 
               <strong>
-                {data.customers}
+                {user?.email}
               </strong>
 
             </div>
 
+
             <div className="overview-item">
 
               <span>
-                Leads
+                Role
               </span>
 
               <strong>
-                {data.leads}
+                {user?.role}
               </strong>
 
             </div>
 
+
             <div className="overview-item">
 
               <span>
-                Products
+                Current Page
               </span>
 
               <strong>
-                {data.products}
+                {activePage}
               </strong>
 
             </div>
 
+
             <div className="overview-item">
 
               <span>
-                Total Revenue
+                Authentication
               </span>
 
               <strong>
-                ₹
-                {data.totalSales.toLocaleString()}
+                JWT Authenticated
               </strong>
 
             </div>
@@ -1125,531 +836,111 @@ function App() {
           <div className="overview-card">
 
             <h2>
-              Quick Actions
+              Available Actions
             </h2>
 
-            <button
-              type="button"
-              onClick={() => {
 
-                closeAllForms();
+            {user?.role === "admin" && (
 
-                setShowCustomerForm(true);
+              <button
+                type="button"
+                onClick={
+                  openAdminDashboard
+                }
+              >
+                Open Admin Dashboard
+              </button>
 
-              }}
-            >
-              Add Customer
-            </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => {
 
-                closeAllForms();
+            {(user?.role === "admin" ||
+              user?.role === "manager") && (
 
-                setShowLeadForm(true);
+              <button
+                type="button"
+                onClick={
+                  openManagerDashboard
+                }
+              >
+                Open Manager Dashboard
+              </button>
 
-              }}
-            >
-              Add Lead
-            </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => {
 
-                closeAllForms();
+            {(user?.role === "admin" ||
+              user?.role === "manager" ||
+              user?.role === "employee") && (
 
-                setShowProductForm(true);
+              <button
+                type="button"
+                onClick={
+                  openEmployeeDashboard
+                }
+              >
+                Open Employee Dashboard
+              </button>
 
-              }}
-            >
-              Add Product
-            </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => {
 
-                closeAllForms();
+            {(user?.role === "admin" ||
+              user?.role === "manager") && (
 
-                setShowSaleForm(true);
+              <button
+                type="button"
+                onClick={
+                  openSales
+                }
+              >
+                Access Sales
+              </button>
 
-              }}
-            >
-              Record Sale
-            </button>
+            )}
+
+
+            {user?.role === "admin" && (
+
+              <button
+                type="button"
+                onClick={
+                  openUserManagement
+                }
+              >
+                Manage Users
+              </button>
+
+            )}
 
           </div>
+
 
         </section>
 
+
+        {/* =====================================
+            SERVER MESSAGE
+        ====================================== */}
+
+        {message && (
+
+          <div className="overview-card">
+
+            <h2>
+              Server Response
+            </h2>
+
+            <p>
+              {message}
+            </p>
+
+          </div>
+
+        )}
+
+
       </main>
-
-
-      {/* ADD CUSTOMER MODAL */}
-
-      {showCustomerForm && (
-
-        <div className="modal-overlay">
-
-          <div className="modal">
-
-            <div className="modal-header">
-
-              <h2>
-                Add Customer
-              </h2>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={closeAllForms}
-              >
-                ×
-              </button>
-
-            </div>
-
-            <form
-              onSubmit={
-                handleAddCustomer
-              }
-            >
-
-              <input
-                type="text"
-                name="name"
-                placeholder="Customer Name"
-                value={
-                  customerForm.name
-                }
-                onChange={
-                  handleCustomerInputChange
-                }
-                required
-              />
-
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={
-                  customerForm.email
-                }
-                onChange={
-                  handleCustomerInputChange
-                }
-                required
-              />
-
-              <input
-                type="text"
-                name="phone"
-                placeholder="Phone"
-                value={
-                  customerForm.phone
-                }
-                onChange={
-                  handleCustomerInputChange
-                }
-                required
-              />
-
-              <input
-                type="text"
-                name="company"
-                placeholder="Company"
-                value={
-                  customerForm.company
-                }
-                onChange={
-                  handleCustomerInputChange
-                }
-                required
-              />
-
-              <button
-                type="submit"
-                className="submit-button"
-              >
-                Add Customer
-              </button>
-
-              {message && (
-
-                <p className="form-message">
-                  {message}
-                </p>
-
-              )}
-
-            </form>
-
-          </div>
-
-        </div>
-
-      )}
-
-
-      {/* ADD LEAD MODAL */}
-
-      {showLeadForm && (
-
-        <div className="modal-overlay">
-
-          <div className="modal">
-
-            <div className="modal-header">
-
-              <h2>
-                Add Lead
-              </h2>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={closeAllForms}
-              >
-                ×
-              </button>
-
-            </div>
-
-            <form
-              onSubmit={
-                handleAddLead
-              }
-            >
-
-              <input
-                type="text"
-                name="name"
-                placeholder="Lead Name"
-                value={
-                  leadForm.name
-                }
-                onChange={
-                  handleLeadInputChange
-                }
-                required
-              />
-
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={
-                  leadForm.email
-                }
-                onChange={
-                  handleLeadInputChange
-                }
-                required
-              />
-
-              <input
-                type="text"
-                name="phone"
-                placeholder="Phone"
-                value={
-                  leadForm.phone
-                }
-                onChange={
-                  handleLeadInputChange
-                }
-                required
-              />
-
-              <select
-                name="status"
-                value={
-                  leadForm.status
-                }
-                onChange={
-                  handleLeadInputChange
-                }
-                required
-              >
-
-                <option value="New">
-                  New
-                </option>
-
-                <option value="Contacted">
-                  Contacted
-                </option>
-
-                <option value="Qualified">
-                  Qualified
-                </option>
-
-                <option value="Converted">
-                  Converted
-                </option>
-
-              </select>
-
-              <button
-                type="submit"
-                className="submit-button"
-              >
-                Add Lead
-              </button>
-
-              {message && (
-
-                <p className="form-message">
-                  {message}
-                </p>
-
-              )}
-
-            </form>
-
-          </div>
-
-        </div>
-
-      )}
-
-
-      {/* ADD PRODUCT MODAL */}
-
-      {showProductForm && (
-
-        <div className="modal-overlay">
-
-          <div className="modal">
-
-            <div className="modal-header">
-
-              <h2>
-                Add Product
-              </h2>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={closeAllForms}
-              >
-                ×
-              </button>
-
-            </div>
-
-            <form
-              onSubmit={
-                handleAddProduct
-              }
-            >
-
-              <input
-                type="text"
-                name="name"
-                placeholder="Product Name"
-                value={
-                  productForm.name
-                }
-                onChange={
-                  handleProductInputChange
-                }
-                required
-              />
-
-              <input
-                type="text"
-                name="category"
-                placeholder="Category"
-                value={
-                  productForm.category
-                }
-                onChange={
-                  handleProductInputChange
-                }
-                required
-              />
-
-              <input
-                type="number"
-                name="price"
-                placeholder="Price"
-                value={
-                  productForm.price
-                }
-                onChange={
-                  handleProductInputChange
-                }
-                min="0"
-                required
-              />
-
-              <input
-                type="number"
-                name="stock"
-                placeholder="Stock"
-                value={
-                  productForm.stock
-                }
-                onChange={
-                  handleProductInputChange
-                }
-                min="0"
-                required
-              />
-
-              <button
-                type="submit"
-                className="submit-button"
-              >
-                Add Product
-              </button>
-
-              {message && (
-
-                <p className="form-message">
-                  {message}
-                </p>
-
-              )}
-
-            </form>
-
-          </div>
-
-        </div>
-
-      )}
-
-
-      {/* RECORD SALE MODAL */}
-
-      {showSaleForm && (
-
-        <div className="modal-overlay">
-
-          <div className="modal">
-
-            <div className="modal-header">
-
-              <h2>
-                Record Sale
-              </h2>
-
-              <button
-                type="button"
-                className="close-button"
-                onClick={closeAllForms}
-              >
-                ×
-              </button>
-
-            </div>
-
-            <form
-              onSubmit={
-                handleRecordSale
-              }
-            >
-
-              <select
-                name="customer_id"
-                value={
-                  saleForm.customer_id
-                }
-                onChange={
-                  handleSaleInputChange
-                }
-                required
-              >
-
-                <option value="">
-                  Select Customer
-                </option>
-
-                {customers.map(
-                  (customer) => (
-
-                    <option
-                      key={
-                        customer.id
-                      }
-                      value={
-                        customer.id
-                      }
-                    >
-
-                      {customer.name}
-
-                    </option>
-
-                  )
-                )}
-
-              </select>
-
-              <input
-                type="number"
-                name="amount"
-                placeholder="Sale Amount"
-                value={
-                  saleForm.amount
-                }
-                onChange={
-                  handleSaleInputChange
-                }
-                min="0"
-                required
-              />
-
-              <select
-                name="status"
-                value={
-                  saleForm.status
-                }
-                onChange={
-                  handleSaleInputChange
-                }
-                required
-              >
-
-                <option value="Completed">
-                  Completed
-                </option>
-
-                <option value="Pending">
-                  Pending
-                </option>
-
-                <option value="Cancelled">
-                  Cancelled
-                </option>
-
-              </select>
-
-              <button
-                type="submit"
-                className="submit-button"
-              >
-                Record Sale
-              </button>
-
-              {message && (
-
-                <p className="form-message">
-                  {message}
-                </p>
-
-              )}
-
-            </form>
-
-          </div>
-
-        </div>
-
-      )}
 
     </div>
 
@@ -1657,5 +948,5 @@ function App() {
 
 }
 
-
 export default App;
+```
