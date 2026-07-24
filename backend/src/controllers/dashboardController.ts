@@ -22,38 +22,23 @@ export const getDashboardData = async (
       "SELECT COUNT(*) FROM products"
     );
 
-    const salesResult = await pool.query(
-      "SELECT COALESCE(SUM(amount), 0) AS total_sales FROM sales"
-    );
+    const salesResult = await pool.query(`
+      SELECT COALESCE(SUM(amount), 0) AS total_sales
+      FROM sales
+    `);
 
     res.json({
-      customers: Number(
-        customersResult.rows[0].count
-      ),
-
-      leads: Number(
-        leadsResult.rows[0].count
-      ),
-
-      products: Number(
-        productsResult.rows[0].count
-      ),
-
-      totalSales: Number(
-        salesResult.rows[0].total_sales
-      )
+      customers: Number(customersResult.rows[0].count),
+      leads: Number(leadsResult.rows[0].count),
+      products: Number(productsResult.rows[0].count),
+      totalSales: Number(salesResult.rows[0].total_sales)
     });
 
   } catch (error) {
-
-    console.error(
-      "Dashboard data error:",
-      error
-    );
+    console.error("Dashboard data error:", error);
 
     res.status(500).json({
-      message:
-        "Failed to fetch dashboard data"
+      message: "Failed to fetch dashboard data"
     });
   }
 };
@@ -68,47 +53,30 @@ export const getSalesOverview = async (
   res: Response
 ) => {
   try {
-
     const result = await pool.query(`
       SELECT
         TO_CHAR(sale_date, 'Mon') AS month,
         SUM(amount) AS sales
       FROM sales
       GROUP BY
-        DATE_TRUNC(
-          'month',
-          sale_date
-        ),
-        TO_CHAR(
-          sale_date,
-          'Mon'
-        )
+        DATE_TRUNC('month', sale_date),
+        TO_CHAR(sale_date, 'Mon')
       ORDER BY
-        DATE_TRUNC(
-          'month',
-          sale_date
-        )
+        DATE_TRUNC('month', sale_date)
     `);
 
-    const salesData = result.rows.map(
-      (row) => ({
-        month: row.month,
-        sales: Number(row.sales)
-      })
-    );
+    const salesData = result.rows.map((row) => ({
+      month: row.month,
+      sales: Number(row.sales)
+    }));
 
     res.json(salesData);
 
   } catch (error) {
-
-    console.error(
-      "Sales overview error:",
-      error
-    );
+    console.error("Sales overview error:", error);
 
     res.status(500).json({
-      message:
-        "Failed to fetch sales overview"
+      message: "Failed to fetch sales overview"
     });
   }
 };
@@ -123,14 +91,14 @@ export const getCustomers = async (
   res: Response
 ) => {
   try {
-
     const result = await pool.query(`
       SELECT
         id,
         name,
         email,
         phone,
-        company
+        company,
+        created_at
       FROM customers
       ORDER BY id ASC
     `);
@@ -138,15 +106,10 @@ export const getCustomers = async (
     res.json(result.rows);
 
   } catch (error) {
-
-    console.error(
-      "Get customers error:",
-      error
-    );
+    console.error("Get customers error:", error);
 
     res.status(500).json({
-      message:
-        "Failed to fetch customers"
+      message: "Failed to fetch customers"
     });
   }
 };
@@ -161,7 +124,6 @@ export const addCustomer = async (
   res: Response
 ) => {
   try {
-
     const {
       name,
       email,
@@ -175,10 +137,8 @@ export const addCustomer = async (
       !phone ||
       !company
     ) {
-
       return res.status(400).json({
-        message:
-          "All fields are required"
+        message: "All fields are required"
       });
     }
 
@@ -191,7 +151,6 @@ export const addCustomer = async (
         phone,
         company
       )
-
       VALUES
       (
         $1,
@@ -199,7 +158,6 @@ export const addCustomer = async (
         $3,
         $4
       )
-
       RETURNING *
       `,
       [
@@ -211,27 +169,15 @@ export const addCustomer = async (
     );
 
     res.status(201).json({
-
-      message:
-        "Customer added successfully",
-
-      customer:
-        result.rows[0]
-
+      message: "Customer added successfully",
+      customer: result.rows[0]
     });
 
   } catch (error) {
-
-    console.error(
-      "Add customer error:",
-      error
-    );
+    console.error("Add customer error:", error);
 
     res.status(500).json({
-
-      message:
-        "Failed to add customer"
-
+      message: "Failed to add customer"
     });
   }
 };
@@ -246,7 +192,6 @@ export const addLead = async (
   res: Response
 ) => {
   try {
-
     const {
       name,
       email,
@@ -260,10 +205,8 @@ export const addLead = async (
       !phone ||
       !status
     ) {
-
       return res.status(400).json({
-        message:
-          "All fields are required"
+        message: "All fields are required"
       });
     }
 
@@ -276,7 +219,6 @@ export const addLead = async (
         phone,
         status
       )
-
       VALUES
       (
         $1,
@@ -284,7 +226,6 @@ export const addLead = async (
         $3,
         $4
       )
-
       RETURNING *
       `,
       [
@@ -296,27 +237,15 @@ export const addLead = async (
     );
 
     res.status(201).json({
-
-      message:
-        "Lead added successfully",
-
-      lead:
-        result.rows[0]
-
+      message: "Lead added successfully",
+      lead: result.rows[0]
     });
 
   } catch (error) {
-
-    console.error(
-      "Add lead error:",
-      error
-    );
+    console.error("Add lead error:", error);
 
     res.status(500).json({
-
-      message:
-        "Failed to add lead"
-
+      message: "Failed to add lead"
     });
   }
 };
@@ -331,7 +260,6 @@ export const addProduct = async (
   res: Response
 ) => {
   try {
-
     const {
       name,
       category,
@@ -345,10 +273,8 @@ export const addProduct = async (
       price === undefined ||
       stock === undefined
     ) {
-
       return res.status(400).json({
-        message:
-          "All fields are required"
+        message: "All fields are required"
       });
     }
 
@@ -361,7 +287,6 @@ export const addProduct = async (
         price,
         stock
       )
-
       VALUES
       (
         $1,
@@ -369,7 +294,6 @@ export const addProduct = async (
         $3,
         $4
       )
-
       RETURNING *
       `,
       [
@@ -381,27 +305,15 @@ export const addProduct = async (
     );
 
     res.status(201).json({
-
-      message:
-        "Product added successfully",
-
-      product:
-        result.rows[0]
-
+      message: "Product added successfully",
+      product: result.rows[0]
     });
 
   } catch (error) {
-
-    console.error(
-      "Add product error:",
-      error
-    );
+    console.error("Add product error:", error);
 
     res.status(500).json({
-
-      message:
-        "Failed to add product"
-
+      message: "Failed to add product"
     });
   }
 };
@@ -416,7 +328,6 @@ export const recordSale = async (
   res: Response
 ) => {
   try {
-
     const {
       customer_id,
       amount,
@@ -428,30 +339,25 @@ export const recordSale = async (
       amount === undefined ||
       !status
     ) {
-
       return res.status(400).json({
         message:
           "Customer, amount and status are required"
       });
     }
 
-    const customerCheck =
-      await pool.query(
-        `
-        SELECT id
-        FROM customers
-        WHERE id = $1
-        `,
-        [customer_id]
-      );
+    // Check whether customer exists
+    const customerCheck = await pool.query(
+      `
+      SELECT id
+      FROM customers
+      WHERE id = $1
+      `,
+      [customer_id]
+    );
 
-    if (
-      customerCheck.rows.length === 0
-    ) {
-
+    if (customerCheck.rows.length === 0) {
       return res.status(404).json({
-        message:
-          "Customer not found"
+        message: "Customer not found"
       });
     }
 
@@ -463,14 +369,12 @@ export const recordSale = async (
         amount,
         status
       )
-
       VALUES
       (
         $1,
         $2,
         $3
       )
-
       RETURNING *
       `,
       [
@@ -481,27 +385,15 @@ export const recordSale = async (
     );
 
     res.status(201).json({
-
-      message:
-        "Sale recorded successfully",
-
-      sale:
-        result.rows[0]
-
+      message: "Sale recorded successfully",
+      sale: result.rows[0]
     });
 
   } catch (error) {
-
-    console.error(
-      "Record sale error:",
-      error
-    );
+    console.error("Record sale error:", error);
 
     res.status(500).json({
-
-      message:
-        "Failed to record sale"
-
+      message: "Failed to record sale"
     });
   }
 };
