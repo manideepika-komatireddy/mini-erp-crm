@@ -11,6 +11,14 @@ interface User {
   role: string;
 }
 
+interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+}
+
 interface AuthResponse {
   message: string;
   token?: string;
@@ -24,6 +32,7 @@ type Page =
   | "employee"
   | "sales"
   | "users"
+  | "customers"
   | "profile";
 
 function App() {
@@ -60,6 +69,26 @@ function App() {
   const [message, setMessage] = useState("");
 
   // ==========================================
+  // CUSTOMER STATE
+  // ==========================================
+
+  const [customers, setCustomers] =
+    useState<Customer[]>([]);
+
+  const [showCustomerModal, setShowCustomerModal] =
+    useState(false);
+
+  const [customerLoading, setCustomerLoading] =
+    useState(false);
+
+  const [customerForm, setCustomerForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+  });
+
+  // ==========================================
   // AUTH FORM STATE
   // ==========================================
 
@@ -85,12 +114,24 @@ function App() {
       HTMLInputElement | HTMLSelectElement
     >
   ) => {
-    const {
-      name,
-      value,
-    } = event.target;
+    const { name, value } = event.target;
 
     setAuthForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  // ==========================================
+  // CUSTOMER INPUT
+  // ==========================================
+
+  const handleCustomerInputChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setCustomerForm((previous) => ({
       ...previous,
       [name]: value,
     }));
@@ -129,12 +170,9 @@ function App() {
         `${API_URL}${endpoint}`,
         {
           method: "POST",
-
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
-
           body: JSON.stringify(body),
         }
       );
@@ -194,9 +232,7 @@ function App() {
 
         setUser(result.user);
 
-        setActivePage(
-          "dashboard"
-        );
+        setActivePage("dashboard");
 
         setMessage(
           "Login successful"
@@ -217,7 +253,7 @@ function App() {
   };
 
   // ==========================================
-  // API REQUEST HELPER
+  // API REQUEST HELPER - GET
   // ==========================================
 
   const apiRequest = async (
@@ -233,7 +269,6 @@ function App() {
       `${API_URL}${endpoint}`,
       {
         method: "GET",
-
         headers: {
           "Content-Type":
             "application/json",
@@ -258,7 +293,51 @@ function App() {
   };
 
   // ==========================================
-  // VERIFY LOGIN
+  // API REQUEST HELPER - POST
+  // ==========================================
+
+  const apiPostRequest = async (
+    endpoint: string,
+    body: unknown
+  ) => {
+    if (!token) {
+      throw new Error(
+        "Authentication token missing"
+      );
+    }
+
+    const response = await fetch(
+      `${API_URL}${endpoint}`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
+
+        body: JSON.stringify(body),
+      }
+    );
+
+    const result =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.message ||
+          "Request failed"
+      );
+    }
+
+    return result;
+  };
+
+  // ==========================================
+  // LOAD DASHBOARD
   // ==========================================
 
   const loadDashboard = async () => {
@@ -315,6 +394,90 @@ function App() {
   };
 
   // ==========================================
+  // LOAD CUSTOMERS
+  // ==========================================
+
+  const loadCustomers = async () => {
+    try {
+      setCustomerLoading(true);
+
+      const result =
+        await apiRequest(
+          "/api/dashboard/customers"
+        );
+
+      setCustomers(result);
+
+      setMessage(
+        "Customers loaded successfully"
+      );
+    } catch (error) {
+      console.error(
+        "Load customers error:",
+        error
+      );
+
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to load customers"
+      );
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
+  // ==========================================
+  // ADD CUSTOMER
+  // ==========================================
+
+  const handleAddCustomer = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    try {
+      setCustomerLoading(true);
+
+      const result =
+        await apiPostRequest(
+          "/api/dashboard/customers",
+          customerForm
+        );
+
+      setMessage(
+        result.message ||
+          "Customer added successfully"
+      );
+
+      setCustomerForm({
+        name: "",
+        email: "",
+        phone: "",
+        company: "",
+      });
+
+      setShowCustomerModal(false);
+
+      await loadCustomers();
+
+    } catch (error) {
+      console.error(
+        "Add customer error:",
+        error
+      );
+
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to add customer"
+      );
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
+  // ==========================================
   // INITIAL LOAD
   // ==========================================
 
@@ -342,6 +505,8 @@ function App() {
     setToken(null);
 
     setUser(null);
+
+    setCustomers([]);
 
     setActivePage(
       "dashboard"
@@ -383,6 +548,16 @@ function App() {
   };
 
   // ==========================================
+  // OPEN CUSTOMERS PAGE
+  // ==========================================
+
+  const openCustomersPage = async () => {
+    setActivePage("customers");
+
+    await loadCustomers();
+  };
+
+  // ==========================================
   // PAGE TITLE
   // ==========================================
 
@@ -402,6 +577,9 @@ function App() {
 
       case "users":
         return "User Management";
+
+      case "customers":
+        return "Customers";
 
       case "profile":
         return "Profile";
@@ -439,83 +617,116 @@ function App() {
 
   if (!token || !user) {
     return (
-      <div className="app">
-        <main className="main-content">
-          <div
-            className="overview-card"
-            style={{
-              maxWidth: "500px",
-              margin: "80px auto",
-            }}
-          >
+      <div className="login-page">
+
+        <div className="login-card">
+
+          <div className="login-logo">
+
+            <div className="login-logo-icon">
+              ERP
+            </div>
+
             <h1>
               Mini ERP CRM
             </h1>
 
+          </div>
+
+          <div className="login-header">
+
             <h2>
               {isRegistering
                 ? "Create Account"
-                : "Login"}
+                : "Welcome Back"}
             </h2>
 
             <p>
               {isRegistering
-                ? "Create a new account to access the ERP CRM."
-                : "Login to access your ERP CRM dashboard."}
+                ? "Create your account to get started."
+                : "Sign in to access your dashboard."}
             </p>
 
-            <form
-              onSubmit={
-                handleAuthSubmit
-              }
-            >
-              {isRegistering && (
+          </div>
+
+          <form
+            className="login-form"
+            onSubmit={handleAuthSubmit}
+          >
+
+            {isRegistering && (
+              <div className="login-field">
+
+                <label htmlFor="name">
+                  Full Name
+                </label>
+
                 <input
+                  id="name"
                   type="text"
                   name="name"
-                  placeholder="Full Name"
-                  value={
-                    authForm.name
-                  }
+                  placeholder="Enter your full name"
+                  value={authForm.name}
                   onChange={
                     handleAuthInputChange
                   }
                   required
                 />
-              )}
+
+              </div>
+            )}
+
+            <div className="login-field">
+
+              <label htmlFor="email">
+                Email Address
+              </label>
 
               <input
+                id="email"
                 type="email"
                 name="email"
-                placeholder="Email Address"
-                value={
-                  authForm.email
-                }
+                placeholder="Enter your email"
+                value={authForm.email}
                 onChange={
                   handleAuthInputChange
                 }
                 required
               />
+
+            </div>
+
+            <div className="login-field">
+
+              <label htmlFor="password">
+                Password
+              </label>
 
               <input
+                id="password"
                 type="password"
                 name="password"
-                placeholder="Password"
-                value={
-                  authForm.password
-                }
+                placeholder="Enter your password"
+                value={authForm.password}
                 onChange={
                   handleAuthInputChange
                 }
                 required
               />
 
-              {isRegistering && (
+            </div>
+
+            {isRegistering && (
+              <div className="login-field">
+
+                <label htmlFor="role">
+                  Role
+                </label>
+
                 <select
+                  id="role"
                   name="role"
-                  value={
-                    authForm.role
-                  }
+                  value={authForm.role}
                   onChange={
                     handleAuthInputChange
                   }
@@ -532,50 +743,65 @@ function App() {
                     Admin
                   </option>
                 </select>
-              )}
 
-              <button
-                type="submit"
-                disabled={
-                  authLoading
-                }
-              >
-                {authLoading
-                  ? "Please wait..."
-                  : isRegistering
-                  ? "Create Account"
-                  : "Login"}
-              </button>
-            </form>
-
-            {message && (
-              <p className="form-message">
-                {message}
-              </p>
+              </div>
             )}
 
-            <div
-              style={{
-                marginTop: "20px",
+            <button
+              className="login-button"
+              type="submit"
+              disabled={authLoading}
+            >
+              {authLoading
+                ? "Please wait..."
+                : isRegistering
+                ? "Create Account"
+                : "Sign In"}
+            </button>
+
+          </form>
+
+          {message && (
+            <p
+              className={`login-message ${
+                message
+                  .toLowerCase()
+                  .includes("successful")
+                  ? "login-success"
+                  : "login-error"
+              }`}
+            >
+              {message}
+            </p>
+          )}
+
+          <div className="login-switch">
+
+            <span>
+              {isRegistering
+                ? "Already have an account?"
+                : "Don't have an account?"}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegistering(
+                  !isRegistering
+                );
+
+                setMessage("");
               }}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setIsRegistering(
-                    !isRegistering
-                  );
+              {isRegistering
+                ? "Sign In"
+                : "Create Account"}
+            </button>
 
-                  setMessage("");
-                }}
-              >
-                {isRegistering
-                  ? "Already have an account? Login"
-                  : "Don't have an account? Register"}
-              </button>
-            </div>
           </div>
-        </main>
+
+        </div>
+
       </div>
     );
   }
@@ -614,6 +840,19 @@ function App() {
             Dashboard
           </a>
 
+          <a
+            className={
+              activePage === "customers"
+                ? "active"
+                : ""
+            }
+            onClick={
+              openCustomersPage
+            }
+          >
+            Customers
+          </a>
+
           {user.role === "admin" && (
             <a
               className={
@@ -634,8 +873,7 @@ function App() {
           )}
 
           {(user.role === "admin" ||
-            user.role ===
-              "manager") && (
+            user.role === "manager") && (
             <a
               className={
                 activePage === "manager"
@@ -656,8 +894,7 @@ function App() {
 
           {(user.role === "admin" ||
             user.role === "manager" ||
-            user.role ===
-              "employee") && (
+            user.role === "employee") && (
             <a
               className={
                 activePage === "employee"
@@ -677,8 +914,7 @@ function App() {
           )}
 
           {(user.role === "admin" ||
-            user.role ===
-              "manager") && (
+            user.role === "manager") && (
             <a
               className={
                 activePage === "sales"
@@ -791,237 +1027,394 @@ function App() {
 
         </header>
 
-        {/* DASHBOARD CARDS */}
+        {/* ==========================================
+            CUSTOMERS PAGE
+        ========================================== */}
 
-        <section className="dashboard-cards">
+        {activePage === "customers" ? (
 
-          <div className="card">
+          <section className="overview">
 
-            <div className="card-icon">
-              🔐
+            <div className="overview-card">
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  alignItems: "center",
+                  marginBottom: "20px",
+                }}
+              >
+
+                <h2>
+                  Customer Management
+                </h2>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowCustomerModal(true)
+                  }
+                >
+                  Add Customer
+                </button>
+
+              </div>
+
+              {customerLoading &&
+                customers.length === 0 ? (
+
+                <p>
+                  Loading customers...
+                </p>
+
+              ) : customers.length === 0 ? (
+
+                <p>
+                  No customers found.
+                </p>
+
+              ) : (
+
+                <div
+                  style={{
+                    overflowX: "auto",
+                  }}
+                >
+
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse:
+                        "collapse",
+                    }}
+                  >
+
+                    <thead>
+
+                      <tr>
+
+                        <th>
+                          ID
+                        </th>
+
+                        <th>
+                          Name
+                        </th>
+
+                        <th>
+                          Email
+                        </th>
+
+                        <th>
+                          Phone
+                        </th>
+
+                        <th>
+                          Company
+                        </th>
+
+                      </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                      {customers.map(
+                        (customer) => (
+
+                          <tr
+                            key={
+                              customer.id
+                            }
+                          >
+
+                            <td>
+                              {customer.id}
+                            </td>
+
+                            <td>
+                              {customer.name}
+                            </td>
+
+                            <td>
+                              {customer.email}
+                            </td>
+
+                            <td>
+                              {customer.phone}
+                            </td>
+
+                            <td>
+                              {customer.company}
+                            </td>
+
+                          </tr>
+
+                        )
+                      )}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              )}
+
             </div>
 
-            <div>
+          </section>
 
-              <p>
-                Access Level
-              </p>
+        ) : (
 
-              <h2>
+          <>
+
+            {/* DASHBOARD CARDS */}
+
+            <section className="dashboard-cards">
+
+              <div className="card">
+
+                <div className="card-icon">
+                  🔐
+                </div>
+
+                <div>
+
+                  <p>
+                    Access Level
+                  </p>
+
+                  <h2>
+                    {user.role ===
+                    "admin"
+                      ? "Full"
+                      : user.role ===
+                        "manager"
+                      ? "Manager"
+                      : "Employee"}
+                  </h2>
+
+                </div>
+
+              </div>
+
+              <div className="card">
+
+                <div className="card-icon">
+                  ✅
+                </div>
+
+                <div>
+
+                  <p>
+                    Status
+                  </p>
+
+                  <h2>
+                    Active
+                  </h2>
+
+                </div>
+
+              </div>
+
+              <div className="card">
+
+                <div className="card-icon">
+                  👤
+                </div>
+
+                <div>
+
+                  <p>
+                    Role
+                  </p>
+
+                  <h2>
+                    {user.role}
+                  </h2>
+
+                </div>
+
+              </div>
+
+            </section>
+
+            {/* OVERVIEW */}
+
+            <section className="overview">
+
+              <div className="overview-card">
+
+                <h2>
+                  Account Overview
+                </h2>
+
+                <div className="overview-item">
+
+                  <span>
+                    Name
+                  </span>
+
+                  <strong>
+                    {user.name}
+                  </strong>
+
+                </div>
+
+                <div className="overview-item">
+
+                  <span>
+                    Email
+                  </span>
+
+                  <strong>
+                    {user.email}
+                  </strong>
+
+                </div>
+
+                <div className="overview-item">
+
+                  <span>
+                    Role
+                  </span>
+
+                  <strong>
+                    {user.role}
+                  </strong>
+
+                </div>
+
+                <div className="overview-item">
+
+                  <span>
+                    Authentication
+                  </span>
+
+                  <strong>
+                    JWT Authenticated
+                  </strong>
+
+                </div>
+
+              </div>
+
+              {/* AVAILABLE ACTIONS */}
+
+              <div className="overview-card">
+
+                <h2>
+                  Available Actions
+                </h2>
+
+                <button
+                  type="button"
+                  onClick={
+                    openCustomersPage
+                  }
+                >
+                  Manage Customers
+                </button>
+
                 {user.role ===
-                "admin"
-                  ? "Full"
-                  : user.role ===
-                    "manager"
-                  ? "Manager"
-                  : "Employee"}
-              </h2>
+                  "admin" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openRolePage(
+                        "/api/dashboard/admin",
+                        "admin",
+                        "Admin access denied"
+                      )
+                    }
+                  >
+                    Open Admin Dashboard
+                  </button>
+                )}
 
-            </div>
+                {(user.role ===
+                  "admin" ||
+                  user.role ===
+                    "manager") && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openRolePage(
+                        "/api/dashboard/manager",
+                        "manager",
+                        "Manager access denied"
+                      )
+                    }
+                  >
+                    Open Manager Dashboard
+                  </button>
+                )}
 
-          </div>
+                {(user.role ===
+                  "admin" ||
+                  user.role ===
+                    "manager" ||
+                  user.role ===
+                    "employee") && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openRolePage(
+                        "/api/dashboard/employee",
+                        "employee",
+                        "Employee access denied"
+                      )
+                    }
+                  >
+                    Open Employee Dashboard
+                  </button>
+                )}
 
-          <div className="card">
+                {(user.role ===
+                  "admin" ||
+                  user.role ===
+                    "manager") && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openRolePage(
+                        "/api/dashboard/sales",
+                        "sales",
+                        "Only Admin and Manager can access Sales"
+                      )
+                    }
+                  >
+                    Access Sales
+                  </button>
+                )}
 
-            <div className="card-icon">
-              ✅
-            </div>
+                {user.role ===
+                  "admin" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openRolePage(
+                        "/api/dashboard/users",
+                        "users",
+                        "Only administrators can access User Management"
+                      )
+                    }
+                  >
+                    Manage Users
+                  </button>
+                )}
 
-            <div>
+              </div>
 
-              <p>
-                Status
-              </p>
+            </section>
 
-              <h2>
-                Active
-              </h2>
+          </>
 
-            </div>
-
-          </div>
-
-          <div className="card">
-
-            <div className="card-icon">
-              👤
-            </div>
-
-            <div>
-
-              <p>
-                Role
-              </p>
-
-              <h2>
-                {user.role}
-              </h2>
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* OVERVIEW */}
-
-        <section className="overview">
-
-          <div className="overview-card">
-
-            <h2>
-              Account Overview
-            </h2>
-
-            <div className="overview-item">
-
-              <span>
-                Name
-              </span>
-
-              <strong>
-                {user.name}
-              </strong>
-
-            </div>
-
-            <div className="overview-item">
-
-              <span>
-                Email
-              </span>
-
-              <strong>
-                {user.email}
-              </strong>
-
-            </div>
-
-            <div className="overview-item">
-
-              <span>
-                Role
-              </span>
-
-              <strong>
-                {user.role}
-              </strong>
-
-            </div>
-
-            <div className="overview-item">
-
-              <span>
-                Authentication
-              </span>
-
-              <strong>
-                JWT Authenticated
-              </strong>
-
-            </div>
-
-          </div>
-
-          {/* AVAILABLE ACTIONS */}
-
-          <div className="overview-card">
-
-            <h2>
-              Available Actions
-            </h2>
-
-            {user.role ===
-              "admin" && (
-              <button
-                type="button"
-                onClick={() =>
-                  openRolePage(
-                    "/api/dashboard/admin",
-                    "admin",
-                    "Admin access denied"
-                  )
-                }
-              >
-                Open Admin Dashboard
-              </button>
-            )}
-
-            {(user.role ===
-              "admin" ||
-              user.role ===
-                "manager") && (
-              <button
-                type="button"
-                onClick={() =>
-                  openRolePage(
-                    "/api/dashboard/manager",
-                    "manager",
-                    "Manager access denied"
-                  )
-                }
-              >
-                Open Manager Dashboard
-              </button>
-            )}
-
-            {(user.role ===
-              "admin" ||
-              user.role ===
-                "manager" ||
-              user.role ===
-                "employee") && (
-              <button
-                type="button"
-                onClick={() =>
-                  openRolePage(
-                    "/api/dashboard/employee",
-                    "employee",
-                    "Employee access denied"
-                  )
-                }
-              >
-                Open Employee Dashboard
-              </button>
-            )}
-
-            {(user.role ===
-              "admin" ||
-              user.role ===
-                "manager") && (
-              <button
-                type="button"
-                onClick={() =>
-                  openRolePage(
-                    "/api/dashboard/sales",
-                    "sales",
-                    "Only Admin and Manager can access Sales"
-                  )
-                }
-              >
-                Access Sales
-              </button>
-            )}
-
-            {user.role ===
-              "admin" && (
-              <button
-                type="button"
-                onClick={() =>
-                  openRolePage(
-                    "/api/dashboard/users",
-                    "users",
-                    "Only administrators can access User Management"
-                  )
-                }
-              >
-                Manage Users
-              </button>
-            )}
-
-          </div>
-
-        </section>
+        )}
 
         {/* SERVER MESSAGE */}
 
@@ -1040,6 +1433,170 @@ function App() {
         )}
 
       </main>
+
+      {/* ==========================================
+          ADD CUSTOMER MODAL
+      ========================================== */}
+
+      {showCustomerModal && (
+
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background:
+              "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+
+          <div
+            className="overview-card"
+            style={{
+              width: "90%",
+              maxWidth: "500px",
+            }}
+          >
+
+            <h2>
+              Add New Customer
+            </h2>
+
+            <form
+              onSubmit={
+                handleAddCustomer
+              }
+            >
+
+              <div className="login-field">
+
+                <label>
+                  Name
+                </label>
+
+                <input
+                  type="text"
+                  name="name"
+                  value={
+                    customerForm.name
+                  }
+                  onChange={
+                    handleCustomerInputChange
+                  }
+                  required
+                />
+
+              </div>
+
+              <div className="login-field">
+
+                <label>
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  name="email"
+                  value={
+                    customerForm.email
+                  }
+                  onChange={
+                    handleCustomerInputChange
+                  }
+                  required
+                />
+
+              </div>
+
+              <div className="login-field">
+
+                <label>
+                  Phone
+                </label>
+
+                <input
+                  type="text"
+                  name="phone"
+                  value={
+                    customerForm.phone
+                  }
+                  onChange={
+                    handleCustomerInputChange
+                  }
+                  required
+                />
+
+              </div>
+
+              <div className="login-field">
+
+                <label>
+                  Company
+                </label>
+
+                <input
+                  type="text"
+                  name="company"
+                  value={
+                    customerForm.company
+                  }
+                  onChange={
+                    handleCustomerInputChange
+                  }
+                  required
+                />
+
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "20px",
+                }}
+              >
+
+                <button
+                  type="submit"
+                  disabled={
+                    customerLoading
+                  }
+                >
+                  {customerLoading
+                    ? "Adding..."
+                    : "Add Customer"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomerModal(
+                      false
+                    );
+
+                    setCustomerForm({
+                      name: "",
+                      email: "",
+                      phone: "",
+                      company: "",
+                    });
+                  }}
+                >
+                  Cancel
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+
+      )}
 
     </div>
   );

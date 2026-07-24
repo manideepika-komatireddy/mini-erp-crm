@@ -5,35 +5,109 @@ import {
   authorizeRoles
 } from "../middleware/authMiddleware";
 
+import {
+  getDashboardData,
+  getSalesOverview,
+  getCustomers,
+  addCustomer,
+  addLead,
+  addProduct,
+  recordSale
+} from "../controllers/dashboardController";
+
 const router = express.Router();
 
 
 // ==========================================
-// TEST DASHBOARD ROUTE
+// MAIN DASHBOARD DATA
 // ==========================================
-// Any logged-in user can access
 
 router.get(
   "/",
   authenticateToken,
-  (req, res) => {
+  getDashboardData
+);
 
-    res.json({
-      message:
-        "Dashboard accessed successfully",
 
-      user:
-        (req as any).user
-    });
+// ==========================================
+// SALES OVERVIEW
+// ==========================================
 
-  }
+router.get(
+  "/sales",
+  authenticateToken,
+  authorizeRoles("admin", "manager"),
+  getSalesOverview
+);
+
+
+// ==========================================
+// GET ALL CUSTOMERS
+// ==========================================
+// All logged-in users can view customers
+
+router.get(
+  "/customers",
+  authenticateToken,
+  getCustomers
+);
+
+
+// ==========================================
+// ADD CUSTOMER
+// ==========================================
+// Admin and Manager only
+
+router.post(
+  "/customers",
+  authenticateToken,
+  authorizeRoles("admin", "manager"),
+  addCustomer
+);
+
+
+// ==========================================
+// ADD LEAD
+// ==========================================
+// Admin and Manager only
+
+router.post(
+  "/leads",
+  authenticateToken,
+  authorizeRoles("admin", "manager"),
+  addLead
+);
+
+
+// ==========================================
+// ADD PRODUCT
+// ==========================================
+// Admin only
+
+router.post(
+  "/products",
+  authenticateToken,
+  authorizeRoles("admin"),
+  addProduct
+);
+
+
+// ==========================================
+// RECORD SALE
+// ==========================================
+// Admin and Manager only
+
+router.post(
+  "/sales",
+  authenticateToken,
+  authorizeRoles("admin", "manager"),
+  recordSale
 );
 
 
 // ==========================================
 // ADMIN DASHBOARD
 // ==========================================
-// Only ADMIN can access
 
 router.get(
   "/admin",
@@ -42,16 +116,9 @@ router.get(
   (req, res) => {
 
     res.json({
-
-      message:
-        "Welcome to Admin Dashboard",
-
-      access:
-        "Full access",
-
-      user:
-        (req as any).user
-
+      message: "Welcome to Admin Dashboard",
+      access: "Full access",
+      user: (req as any).user
     });
 
   }
@@ -61,28 +128,17 @@ router.get(
 // ==========================================
 // MANAGER DASHBOARD
 // ==========================================
-// ADMIN and MANAGER can access
 
 router.get(
   "/manager",
   authenticateToken,
-  authorizeRoles(
-    "admin",
-    "manager"
-  ),
+  authorizeRoles("admin", "manager"),
   (req, res) => {
 
     res.json({
-
-      message:
-        "Welcome to Manager Dashboard",
-
-      access:
-        "Manager access",
-
-      user:
-        (req as any).user
-
+      message: "Welcome to Manager Dashboard",
+      access: "Manager access",
+      user: (req as any).user
     });
 
   }
@@ -92,7 +148,6 @@ router.get(
 // ==========================================
 // EMPLOYEE DASHBOARD
 // ==========================================
-// ADMIN, MANAGER and EMPLOYEE can access
 
 router.get(
   "/employee",
@@ -105,16 +160,9 @@ router.get(
   (req, res) => {
 
     res.json({
-
-      message:
-        "Welcome to Employee Dashboard",
-
-      access:
-        "Employee access",
-
-      user:
-        (req as any).user
-
+      message: "Welcome to Employee Dashboard",
+      access: "Employee access",
+      user: (req as any).user
     });
 
   }
@@ -122,8 +170,9 @@ router.get(
 
 
 // ==========================================
-// ADMIN ONLY - USER MANAGEMENT
+// USER MANAGEMENT
 // ==========================================
+// Admin only
 
 router.get(
   "/users",
@@ -132,16 +181,9 @@ router.get(
   (req, res) => {
 
     res.json({
-
-      message:
-        "User management accessed",
-
-      access:
-        "Admin only",
-
-      user:
-        (req as any).user
-
+      message: "User management accessed",
+      access: "Admin only",
+      user: (req as any).user
     });
 
   }
@@ -149,38 +191,9 @@ router.get(
 
 
 // ==========================================
-// ADMIN + MANAGER - SALES
+// PROFILE
 // ==========================================
-
-router.get(
-  "/sales",
-  authenticateToken,
-  authorizeRoles(
-    "admin",
-    "manager"
-  ),
-  (req, res) => {
-
-    res.json({
-
-      message:
-        "Sales data accessed",
-
-      access:
-        "Admin and Manager",
-
-      user:
-        (req as any).user
-
-    });
-
-  }
-);
-
-
-// ==========================================
-// ALL AUTHENTICATED USERS - PROFILE
-// ==========================================
+// All logged-in users
 
 router.get(
   "/profile",
@@ -188,13 +201,8 @@ router.get(
   (req, res) => {
 
     res.json({
-
-      message:
-        "User profile accessed",
-
-      user:
-        (req as any).user
-
+      message: "User profile accessed",
+      user: (req as any).user
     });
 
   }
